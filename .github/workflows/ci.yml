@@ -25,6 +25,8 @@ jobs:
 
       - name: Run tests with coverage
         working-directory: backend
+        env:
+          PYTHONPATH: .
         run: |
           pytest -v \
             --cov=. \
