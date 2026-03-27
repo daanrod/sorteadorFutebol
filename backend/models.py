@@ -16,6 +16,7 @@ class Presenca(str, Enum):
 class PlayerCreate(BaseModel):
     nome: str
     posicao: Posicao = Posicao.LINHA
+    is_especial: bool = False
 
 
 class Player(BaseModel):
@@ -25,6 +26,8 @@ class Player(BaseModel):
     presenca: Presenca = Presenca.PENDENTE
     top_player: bool = False
     is_admin: bool = False
+    is_avulso: bool = False
+    is_especial: bool = False
     time: str | None = None
 
 
@@ -33,6 +36,7 @@ class PlayerUpdate(BaseModel):
     posicao: Posicao | None = None
     presenca: Presenca | None = None
     top_player: bool | None = None
+    is_especial: bool | None = None
 
 
 class LoginPayload(BaseModel):

@@ -1,3 +1,4 @@
+import os
 from datetime import date
 from uuid import uuid4
 
@@ -11,13 +12,23 @@ from models import (
 from storage import get_all, save_all, get_config, save_config
 from sorteio import sortear
 
+# Carregar .env manualmente (sem dependencia extra)
+_env_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+
 app = FastAPI(title="Sorteador Futebol")
 
-ADMIN_SENHA = "admin123"  # trocar em produção
+ADMIN_SENHA = os.environ.get("ADMIN_SENHA", "admin123")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "https://sorteador-futebol.vercel.app", "https://*.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,8 +51,9 @@ def login(payload: PlayerCreate, response: Response):
     player = next((p for p in players if p["nome"].lower() == payload.nome.lower()), None)
 
     if player:
-        # Atualiza posição caso tenha mudado
+        # Atualiza posição e especial caso tenha mudado
         player["posicao"] = payload.posicao.value
+        player["is_especial"] = payload.is_especial
         save_all("players", players)
     else:
         # Autocadastro
@@ -49,6 +61,7 @@ def login(payload: PlayerCreate, response: Response):
             id=str(uuid4()),
             nome=payload.nome,
             posicao=payload.posicao,
+            is_especial=payload.is_especial,
         ).model_dump()
         players.append(player)
         save_all("players", players)
@@ -99,7 +112,7 @@ def _check_admin(admin_session: str = Cookie(None)):
 # ─── Admin se cadastrar como jogador ───
 
 @app.post("/api/admin/register")
-def admin_register(payload: PlayerCreate, admin_session: str = Cookie(None)):
+def admin_register(payload: PlayerCreate, response: Response, admin_session: str = Cookie(None)):
     """Admin se cadastra como jogador (com tag is_admin)."""
     _check_admin(admin_session)
     players = get_all("players")
@@ -108,16 +121,52 @@ def admin_register(payload: PlayerCreate, admin_session: str = Cookie(None)):
     if existing:
         existing["is_admin"] = True
         existing["posicao"] = payload.posicao.value
+        existing["is_especial"] = payload.is_especial
         existing["presenca"] = "presente"
         save_all("players", players)
+        response.set_cookie("admin_player_id", existing["id"], httponly=True, max_age=86400)
         return existing
 
     player = Player(
         id=str(uuid4()),
         nome=payload.nome,
         posicao=payload.posicao,
+        is_especial=payload.is_especial,
         presenca=Presenca.PRESENTE,
         is_admin=True,
+    ).model_dump()
+    players.append(player)
+    save_all("players", players)
+    response.set_cookie("admin_player_id", player["id"], httponly=True, max_age=86400)
+    return player
+
+
+@app.get("/api/admin/me")
+def admin_me(admin_player_id: str = Cookie(None)):
+    """Retorna o jogador associado ao admin logado."""
+    if not admin_player_id:
+        return {"player": None}
+    players = get_all("players")
+    player = next((p for p in players if p["id"] == admin_player_id), None)
+    return {"player": player}
+
+
+@app.post("/api/admin/add-player")
+def admin_add_player(payload: PlayerCreate, admin_session: str = Cookie(None)):
+    """Admin cadastra jogador avulso (sem acesso ao celular)."""
+    _check_admin(admin_session)
+    players = get_all("players")
+
+    if any(p["nome"].lower() == payload.nome.lower() for p in players):
+        raise HTTPException(400, "Jogador com esse nome já existe")
+
+    player = Player(
+        id=str(uuid4()),
+        nome=payload.nome,
+        posicao=payload.posicao,
+        is_especial=payload.is_especial,
+        presenca=Presenca.PRESENTE,
+        is_avulso=True,
     ).model_dump()
     players.append(player)
     save_all("players", players)
@@ -151,6 +200,15 @@ def delete_player(player_id: str, admin_session: str = Cookie(None)):
     players = get_all("players")
     players = [p for p in players if p["id"] != player_id]
     save_all("players", players)
+    # Resetar sorteio se já foi feito (time ficaria inconsistente)
+    config = get_config()
+    if config.get("sorteio_done"):
+        for p in players:
+            p["time"] = None
+        save_all("players", players)
+        config["sorteio_done"] = False
+        config["sorteio_date"] = None
+        save_config(config)
     return {"ok": True}
 
 
@@ -189,7 +247,10 @@ def realizar_sorteio(admin_session: str = Cookie(None)):
     _check_admin(admin_session)
     players = get_all("players")
     try:
-        times = sortear(players)
+        config = get_config()
+        filtro = config.get("filtro_especial", False)
+        society = config.get("society", False)
+        times = sortear(players, filtro_especial=filtro, society=society)
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -220,12 +281,30 @@ def get_sorteio():
         return {"done": False, "times": {}, "date": None}
 
     players = get_all("players")
-    times: dict[str, list] = {"Amarelo": [], "Azul": [], "Verde": [], "Vermelho": []}
+    times: dict[str, list] = {}
+    reservas = []
     for p in players:
-        if p.get("time") and p["time"] in times:
+        if p.get("time"):
+            if p["time"] not in times:
+                times[p["time"]] = []
             times[p["time"]].append(p)
+        elif p.get("presenca") == "presente":
+            reservas.append(p)
 
-    return {"done": True, "times": times, "date": config.get("sorteio_date")}
+    # Ordenar cada time: goleiro > top > normal > especial
+    def sort_key(p):
+        if p.get("posicao") == "goleiro":
+            return 0
+        if p.get("top_player"):
+            return 1
+        if p.get("is_especial"):
+            return 3
+        return 2
+
+    for nome in times:
+        times[nome] = sorted(times[nome], key=sort_key)
+
+    return {"done": True, "times": times, "reservas": reservas, "date": config.get("sorteio_date"), "reset_count": config.get("reset_count", 0)}
 
 
 # ─── Admin: Reset ───
@@ -241,6 +320,7 @@ def reset_sorteio(admin_session: str = Cookie(None)):
     config = get_config()
     config["sorteio_done"] = False
     config["sorteio_date"] = None
+    config["reset_count"] = config.get("reset_count", 0) + 1
     save_config(config)
 
     return {"ok": True}
@@ -271,6 +351,26 @@ def reset_all(admin_session: str = Cookie(None)):
     save_all("players", [])
     save_config({"sorteio_date": None, "sorteio_done": False})
     return {"ok": True}
+
+
+@app.post("/api/admin/toggle-society")
+def toggle_society(admin_session: str = Cookie(None)):
+    """Alterna entre Futsal (5) e Society (6)."""
+    _check_admin(admin_session)
+    config = get_config()
+    config["society"] = not config.get("society", False)
+    save_config(config)
+    return {"society": config["society"]}
+
+
+@app.post("/api/admin/toggle-filtro-especial")
+def toggle_filtro_especial(admin_session: str = Cookie(None)):
+    """Ativa/desativa o filtro especial pro sorteio do dia."""
+    _check_admin(admin_session)
+    config = get_config()
+    config["filtro_especial"] = not config.get("filtro_especial", False)
+    save_config(config)
+    return {"filtro_especial": config["filtro_especial"]}
 
 
 @app.get("/api/config")

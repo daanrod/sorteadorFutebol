@@ -1,27 +1,63 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { toast } from "sonner"
-import { getMe, updatePresenca, updatePosicao, getSorteio, logout } from "@/lib/api"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { getMe, getPlayers, getSorteio, getConfig } from "@/lib/api"
 import type { Player, SorteioResult } from "@/lib/types"
-import { Check, X, LogOut, Circle, Users, Shield } from "lucide-react"
-import RouletteAnimation from "@/components/RouletteAnimation"
+import { timesOrdenados, teamAccent, teamBadge } from "@/lib/utils-times"
+import { Circle, Shield, Check, X, Timer } from "lucide-react"
+
+
+function formatDateBR(date: string | null) {
+  if (!date) return ""
+  const [y, m, d] = date.split("-").map(Number)
+  const dt = new Date(y, m - 1, d)
+  const dias = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"]
+  return `${dias[dt.getDay()]} ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`
+}
+
+function PlayerBadges({ p }: { p: Player }) {
+  return (
+    <div className="flex gap-1">
+      {p.posicao === "goleiro" && (
+        <Badge className="bg-faint/50 text-text-muted border-0 text-[9px] px-1.5 py-0.5">
+          <Shield className="w-3 h-3 mr-0.5" />GOL
+        </Badge>
+      )}
+      {p.top_player && (
+        <Badge className="bg-top/15 text-top border-0 text-[9px] px-1.5 py-0.5">TOP</Badge>
+      )}
+      {p.is_admin && (
+        <Badge className="bg-primary/15 text-primary border-0 text-[9px] px-1.5 py-0.5">ADM</Badge>
+      )}
+      {p.is_especial && (
+        <Badge className="bg-time-vermelho/15 text-time-vermelho border-0 text-[9px] px-1.5 py-0.5">GOR</Badge>
+      )}
+      {p.is_avulso && (
+        <Badge className="bg-text-muted/15 text-text-muted border-0 text-[9px] px-1.5 py-0.5">AVL</Badge>
+      )}
+    </div>
+  )
+}
 
 export default function PlayerPage() {
-  const [player, setPlayer] = useState<Player | null>(null)
+  const [me, setMe] = useState<Player | null>(null)
+  const [players, setPlayers] = useState<Player[]>([])
   const [sorteio, setSorteio] = useState<SorteioResult | null>(null)
-  const [showRoulette, setShowRoulette] = useState(false)
+  const [society, setSociety] = useState(false)
   const [loading, setLoading] = useState(true)
+  const pollRef = useRef<ReturnType<typeof setInterval>>(null)
   const navigate = useNavigate()
 
   const load = useCallback(async () => {
     try {
-      const { player: p } = await getMe()
-      setPlayer(p)
-      const s = await getSorteio()
+      const [{ player }, allPlayers, s] = await Promise.all([
+        getMe(), getPlayers(), getSorteio(),
+      ])
+      setMe(player)
+      setPlayers(allPlayers)
       setSorteio(s)
+      getConfig().then(cfg => setSociety(cfg.society ?? false)).catch(() => {})
     } catch {
       navigate("/")
     } finally {
@@ -31,38 +67,13 @@ export default function PlayerPage() {
 
   useEffect(() => {
     load()
+    pollRef.current = setInterval(() => {
+      if (!document.hidden) load()
+    }, 2000)
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
   }, [load])
-
-  async function handlePresenca(status: "presente" | "ausente") {
-    try {
-      const updated = await updatePresenca(status)
-      setPlayer(updated)
-      toast.success(status === "presente" ? "Presenca confirmada!" : "Ausencia registrada")
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro")
-    }
-  }
-
-  async function handlePosicao(pos: "linha" | "goleiro") {
-    try {
-      const updated = await updatePosicao(pos)
-      setPlayer(updated)
-      toast.success(pos === "goleiro" ? "Posicao: Goleiro" : "Posicao: Linha")
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro")
-    }
-  }
-
-  async function handleLogout() {
-    await logout()
-    navigate("/")
-  }
-
-  function handleReveal() {
-    if (player?.time) {
-      setShowRoulette(true)
-    }
-  }
 
   if (loading) {
     return (
@@ -72,158 +83,183 @@ export default function PlayerPage() {
     )
   }
 
-  if (!player) return null
+  if (!me) return null
 
   const hasSorteio = sorteio?.done
-  const playerTime = player.time
+  const sort = (list: Player[]) => [...list].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+  const presentes = sort(players.filter(p => p.presenca === "presente"))
+  const ausentes = sort(players.filter(p => p.presenca === "ausente"))
+
+  const isMe = (p: Player) => p.id === me.id
+  const meRow = (p: Player) =>
+    isMe(p) ? "bg-time-amarelo/10 text-time-amarelo font-semibold" : ""
 
   return (
-    <div className="min-h-screen px-4 py-8 max-w-lg mx-auto space-y-6">
+    <div className="min-h-screen px-4 py-6 max-w-2xl mx-auto space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">{player.nome}</h1>
-          <p className="text-text-secondary text-sm">
-            {player.posicao === "goleiro" ? "Goleiro" : "Linha"}
-          </p>
+        <div className="flex items-center gap-2">
+          <h1 className="text-base font-bold">{me.nome}</h1>
+          <Badge className={`border-0 text-[9px] px-1.5 py-0 ${
+            me.presenca === "presente" ? "bg-presente/15 text-presente" : "bg-ausente/15 text-ausente"
+          }`}>
+            {me.presenca === "presente" ? "Presente" : "Ausente"}
+          </Badge>
+          {me.posicao === "goleiro" && (
+            <Badge className="bg-faint/50 text-text-muted border-0 text-[9px] px-1.5 py-0">GOL</Badge>
+          )}
         </div>
-        <button onClick={handleLogout} className="text-text-muted hover:text-text-secondary transition-colors">
-          <LogOut className="w-5 h-5" />
-        </button>
       </div>
 
-      {/* Posição */}
-      <Card className="bg-bg-card border-border">
-        <CardContent className="pt-6 space-y-4">
-          <span className="text-sm font-medium">Posicao</span>
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              onClick={() => handlePosicao("linha")}
-              variant={player.posicao === "linha" ? "default" : "outline"}
-              className={
-                player.posicao === "linha"
-                  ? "bg-primary hover:bg-primary/90 text-white h-11"
-                  : "border-border text-text-secondary hover:bg-bg-elevated h-11"
-              }
-            >
-              <Circle className="w-4 h-4 mr-2" />
-              Linha
-            </Button>
-            <Button
-              onClick={() => handlePosicao("goleiro")}
-              variant={player.posicao === "goleiro" ? "default" : "outline"}
-              className={
-                player.posicao === "goleiro"
-                  ? "bg-time-amarelo hover:bg-time-amarelo/90 text-gray-900 h-11"
-                  : "border-border text-text-secondary hover:bg-bg-elevated h-11"
-              }
-            >
-              <Shield className="w-4 h-4 mr-2" />
-              Goleiro
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Presença */}
-      <Card className="bg-bg-card border-border">
-        <CardContent className="pt-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Presenca</span>
-            {player.presenca === "presente" && (
-              <Badge className="bg-presente/15 text-presente border-0 gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-presente" />
-                Presente
-              </Badge>
-            )}
-            {player.presenca === "ausente" && (
-              <Badge className="bg-ausente/15 text-ausente border-0 gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-ausente" />
-                Ausente
-              </Badge>
-            )}
-            {player.presenca === "pendente" && (
-              <Badge className="bg-faint/50 text-text-muted border-0">Pendente</Badge>
+      {/* Se sorteio aconteceu → mostrar times */}
+      {hasSorteio ? (
+        <>
+          <div className="text-center py-3">
+            <h2 className="text-xl font-bold">Times Sorteados!</h2>
+            <p className="text-text-muted text-sm">{formatDateBR(sorteio.date)}</p>
+            {(sorteio.reset_count ?? 0) > 0 && (
+              <p className="text-ausente text-xs mt-0.5">Sorteio resetado {sorteio.reset_count}x</p>
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              onClick={() => handlePresenca("presente")}
-              variant={player.presenca === "presente" ? "default" : "outline"}
-              className={
-                player.presenca === "presente"
-                  ? "bg-presente hover:bg-presente/90 text-white h-11"
-                  : "border-border text-text-secondary hover:bg-bg-elevated h-11"
-              }
-            >
-              <Check className="w-4 h-4 mr-2" />
-              Presente
-            </Button>
-            <Button
-              onClick={() => handlePresenca("ausente")}
-              variant={player.presenca === "ausente" ? "default" : "outline"}
-              className={
-                player.presenca === "ausente"
-                  ? "bg-ausente hover:bg-ausente/90 text-white h-11"
-                  : "border-border text-text-secondary hover:bg-bg-elevated h-11"
-              }
-            >
-              <X className="w-4 h-4 mr-2" />
-              Ausente
-            </Button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {timesOrdenados(sorteio.times).map(([nome, jogadores]) => (
+              <Card
+                key={nome}
+                className={`bg-bg-card border-border border-l-4 ${teamAccent(nome)}`}
+              >
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold">{nome}</CardTitle>
+                    <Badge className={`border-0 text-[10px] ${teamBadge(nome)}`}>
+                      {jogadores.length}/{society ? 6 : 5}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-0 pb-2">
+                  <table className="w-full">
+                    <tbody>
+                      {jogadores.map((p: Player, i: number) => (
+                        <tr
+                          key={p.id}
+                          className={`${meRow(p)} ${i < jogadores.length - 1 ? "border-b border-border/50" : ""}`}
+                        >
+                          <td className="py-2 px-4 text-sm">{p.nome}</td>
+                          <td className="py-2 px-4 text-right"><PlayerBadges p={p} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Sorteio */}
-      {hasSorteio && (
-        <Card className="bg-bg-card border-border">
-          <CardContent className="pt-6 space-y-4">
-            <div className="text-center space-y-3">
-              <div>
-                <h2 className="font-semibold">Sorteio Realizado!</h2>
-                <p className="text-text-secondary text-sm">{sorteio.date}</p>
-              </div>
-
-              {playerTime && !showRoulette && (
-                <Button
-                  onClick={handleReveal}
-                  className="w-full h-12 bg-primary hover:bg-primary/90 font-semibold text-base"
-                >
-                  Descobrir meu time
-                </Button>
-              )}
-
-              {!playerTime && (
-                <p className="text-text-muted text-sm">
-                  Voce nao participou deste sorteio
-                </p>
-              )}
+          {/* Reservas */}
+          {sorteio.reservas && sorteio.reservas.length > 0 && (
+            <Card className="bg-bg-card border-border border-l-4 border-l-faint">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold text-text-muted">Reservas</CardTitle>
+                  <Badge className="border-0 text-[10px] bg-faint/30 text-text-muted">
+                    {sorteio.reservas.length}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="px-0 pb-2">
+                <table className="w-full">
+                  <tbody>
+                    {sorteio.reservas.map((p: Player) => (
+                      <tr key={p.id} className={meRow(p) || "text-text-muted"}>
+                        <td className="py-2 px-4 text-sm">{p.nome}</td>
+                        <td className="py-2 px-4 text-right"><PlayerBadges p={p} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Aguardando sorteio */}
+          <div className="flex items-center justify-between bg-bg-card rounded-lg px-4 py-3 border border-border">
+            <div className="flex items-center gap-2">
+              <Timer className="w-4 h-4 text-text-muted animate-pulse" />
+              <span className="text-sm text-text-secondary">Aguardando sorteio · {society ? "Society" : "Futsal"}</span>
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex gap-3 text-xs font-mono">
+              <span className="text-presente">{presentes.length} presentes</span>
+              <span className="text-ausente">{ausentes.length} ausentes</span>
+            </div>
+          </div>
+
+          {/* Tabela de Presentes */}
+          {presentes.length > 0 && (
+            <Card className="bg-bg-card border-border">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Check className="w-4 h-4 text-presente" />
+                    Presentes
+                  </CardTitle>
+                  <span className="text-xs text-presente font-mono">{presentes.length}</span>
+                </div>
+              </CardHeader>
+              <CardContent className="px-0 pb-2">
+                <table className="w-full">
+                  <tbody>
+                    {presentes.map((p, i) => (
+                      <tr
+                        key={p.id}
+                        className={`${meRow(p)} ${i < presentes.length - 1 ? "border-b border-border/50" : ""}`}
+                      >
+                        <td className="py-2 px-4 text-sm">{p.nome}</td>
+                        <td className="py-2 px-4 text-right"><PlayerBadges p={p} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Tabela de Ausentes */}
+          {ausentes.length > 0 && (
+            <Card className="bg-bg-card border-border">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <X className="w-4 h-4 text-ausente" />
+                    Ausentes
+                  </CardTitle>
+                  <span className="text-xs text-ausente font-mono">{ausentes.length}</span>
+                </div>
+              </CardHeader>
+              <CardContent className="px-0 pb-2">
+                <table className="w-full">
+                  <tbody>
+                    {ausentes.map((p, i) => (
+                      <tr
+                        key={p.id}
+                        className={`text-text-muted ${i < ausentes.length - 1 ? "border-b border-border/50" : ""}`}
+                      >
+                        <td className="py-2 px-4 text-sm">{p.nome}</td>
+                        <td className="py-2 px-4 text-right"><PlayerBadges p={p} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
-      {/* Roulette Animation */}
-      {showRoulette && playerTime && (
-        <RouletteAnimation
-          teamName={playerTime}
-          onComplete={() => {}}
-        />
-      )}
-
-      {/* Ver times */}
-      {hasSorteio && (
-        <Button
-          onClick={() => navigate("/times")}
-          variant="outline"
-          className="w-full border-border text-text-secondary hover:bg-bg-elevated h-11"
-        >
-          <Users className="w-4 h-4 mr-2" />
-          Ver todos os times
-        </Button>
-      )}
+      <p className="text-center text-text-muted text-[10px] pb-4">
+        Atualiza automaticamente a cada 2 segundos
+      </p>
     </div>
   )
 }

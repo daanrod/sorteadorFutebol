@@ -1,6 +1,6 @@
 import type { Player, Posicao, Presenca, SorteioResult, AppConfig } from "./types"
 
-const BASE = "/api"
+const BASE = import.meta.env.PROD ? "http://217.216.64.14:8000/api" : "/api"
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -15,11 +15,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json()
 }
 
-// Auth jogador (autocadastro: nome + posição)
-export const loginPlayer = (nome: string, posicao: Posicao) =>
+// Auth jogador (autocadastro: nome + posição + especial)
+export const loginPlayer = (nome: string, posicao: Posicao, is_especial = false) =>
   request<{ player: Player }>("/login", {
     method: "POST",
-    body: JSON.stringify({ nome, posicao }),
+    body: JSON.stringify({ nome, posicao, is_especial }),
   })
 
 export const getMe = () => request<{ player: Player }>("/me")
@@ -67,11 +67,25 @@ export const realizarSorteio = () =>
 export const getSorteio = () => request<SorteioResult>("/sorteio")
 
 // Admin actions
-export const adminRegister = (nome: string, posicao: Posicao) =>
+export const adminRegister = (nome: string, posicao: Posicao, is_especial = false) =>
   request<Player>("/admin/register", {
     method: "POST",
-    body: JSON.stringify({ nome, posicao }),
+    body: JSON.stringify({ nome, posicao, is_especial }),
   })
+
+export const adminMe = () => request<{ player: Player | null }>("/admin/me")
+
+export const adminAddPlayer = (nome: string, posicao: Posicao, is_especial = false) =>
+  request<Player>("/admin/add-player", {
+    method: "POST",
+    body: JSON.stringify({ nome, posicao, is_especial }),
+  })
+
+export const toggleFiltroEspecial = () =>
+  request<{ filtro_especial: boolean }>("/admin/toggle-filtro-especial", { method: "POST" })
+
+export const toggleSociety = () =>
+  request<{ society: boolean }>("/admin/toggle-society", { method: "POST" })
 
 export const resetSorteio = () =>
   request<{ ok: boolean }>("/admin/reset-sorteio", { method: "POST" })

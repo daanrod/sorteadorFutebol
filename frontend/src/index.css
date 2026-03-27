@@ -18,9 +18,11 @@
   --color-time-azul: hsl(215 85% 55%);
   --color-time-verde: hsl(145 70% 45%);
   --color-time-vermelho: hsl(0 80% 55%);
+  --color-time-branco: hsl(0 0% 85%);
 
   --color-presente: hsl(145 70% 45%);
   --color-ausente: hsl(0 80% 55%);
+  --color-top: hsl(270 70% 60%);
 
   --font-sans: "Sora", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", monospace;

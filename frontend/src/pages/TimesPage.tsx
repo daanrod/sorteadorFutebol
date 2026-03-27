@@ -5,20 +5,16 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getSorteio } from "@/lib/api"
 import type { SorteioResult, Player } from "@/lib/types"
+import { timesOrdenados, teamAccent, teamBadge } from "@/lib/utils-times"
 import { ArrowLeft, Circle, Shield } from "lucide-react"
 
-const TEAM_ACCENT: Record<string, string> = {
-  Amarelo: "border-l-time-amarelo",
-  Azul: "border-l-time-azul",
-  Verde: "border-l-time-verde",
-  Vermelho: "border-l-time-vermelho",
-}
 
-const TEAM_BADGE_BG: Record<string, string> = {
-  Amarelo: "bg-time-amarelo/15 text-time-amarelo",
-  Azul: "bg-time-azul/15 text-time-azul",
-  Verde: "bg-time-verde/15 text-time-verde",
-  Vermelho: "bg-time-vermelho/15 text-time-vermelho",
+function formatDateBR(date: string | null) {
+  if (!date) return ""
+  const [y, m, d] = date.split("-").map(Number)
+  const dt = new Date(y, m - 1, d)
+  const dias = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"]
+  return `${dias[dt.getDay()]} ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`
 }
 
 export default function TimesPage() {
@@ -64,19 +60,19 @@ export default function TimesPage() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="text-xl font-bold">Times</h1>
-        <span className="text-text-muted text-sm">{sorteio.date}</span>
+        <span className="text-text-muted text-xs">{formatDateBR(sorteio.date)}</span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {Object.entries(sorteio.times).map(([nome, jogadores]) => (
+        {timesOrdenados(sorteio.times).map(([nome, jogadores]) => (
           <Card
             key={nome}
-            className={`bg-bg-card border-border border-l-4 ${TEAM_ACCENT[nome]}`}
+            className={`bg-bg-card border-border border-l-4 ${teamAccent(nome)}`}
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold">{nome}</CardTitle>
-                <Badge className={`border-0 text-xs ${TEAM_BADGE_BG[nome]}`}>
+                <Badge className={`border-0 text-xs ${teamBadge(nome)}`}>
                   {jogadores.length} jogadores
                 </Badge>
               </div>
@@ -94,6 +90,16 @@ export default function TimesPage() {
                         ADM
                       </Badge>
                     )}
+                    {p.is_especial && (
+                      <Badge className="bg-time-vermelho/15 text-time-vermelho border-0 text-[10px] px-1.5">
+                        GOR
+                      </Badge>
+                    )}
+                    {p.is_avulso && (
+                      <Badge className="bg-text-muted/15 text-text-muted border-0 text-[10px] px-1.5">
+                        AVL
+                      </Badge>
+                    )}
                     {p.posicao === "goleiro" && (
                       <Badge className="bg-faint/50 text-text-muted border-0 text-[10px] px-1.5">
                         <Shield className="w-3 h-3 mr-1" />
@@ -101,7 +107,7 @@ export default function TimesPage() {
                       </Badge>
                     )}
                     {p.top_player && (
-                      <Badge className="bg-time-amarelo/15 text-time-amarelo border-0 text-[10px] px-1.5">
+                      <Badge className="bg-top/15 text-top border-0 text-[10px] px-1.5">
                         TOP
                       </Badge>
                     )}
