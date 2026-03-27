@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build
+frontend/dist/
+
+# Python
+backend/venv/
+backend/__pycache__/
+backend/tests/__pycache__/
+*.pyc
+.pytest_cache/
+
+# Data
+backend/data/db.json
+backend/tests/test_data/
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local

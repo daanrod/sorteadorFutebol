@@ -1,0 +1,21 @@
+[project]
+name = "sorteador-futebol-backend"
+version = "1.0.0"
+description = "API para sortear times de futsal"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["."]
+omit = ["tests/*", "venv/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 70
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__",
+]
