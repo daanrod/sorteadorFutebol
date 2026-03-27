@@ -1,71 +1,79 @@
 import pytest
 
 
-async def _create_players(client, count=20, goleiros=4):
-    """Helper: cria jogadores e marca presença."""
-    # Login admin
+async def _create_players(client, count=20, goleiros=2, especiais=0):
+    """Helper: cria jogadores via autocadastro e marca presença."""
     await client.post("/api/admin/login", json={"senha": "admin123"})
 
     for i in range(count):
-        posicao = "goleiro" if i < goleiros else "linha"
-        r = await client.post("/api/players", json={"nome": f"Player{i}", "posicao": posicao})
-        pid = r.json()["id"]
+        if i < goleiros:
+            posicao = "goleiro"
+        else:
+            posicao = "linha"
+        is_especial = i >= (count - especiais) if especiais else False
 
-        # Marcar primeiros 4 como top player
+        r = await client.post("/api/login", json={
+            "nome": f"Player{i}",
+            "posicao": posicao,
+            "is_especial": is_especial,
+        })
+        # Marcar presente
+        await client.patch("/api/presenca/presente")
+
+        # Top players (primeiros 4)
         if i < 4:
+            pid = r.json()["player"]["id"]
             await client.patch(f"/api/players/{pid}", json={"top_player": True})
-
-    # Todos presentes: login como cada um e marcar presença
-    players = (await client.get("/api/players")).json()
-    for p in players:
-        # Simular presença via admin update
-        await client.patch(f"/api/players/{p['id']}", json={"presenca": "presente"})
-
-    return players
 
 
 @pytest.mark.anyio
-async def test_sorteio_completo(admin_client):
-    await _create_players(admin_client, count=20, goleiros=4)
+async def test_sorteio_futsal(admin_client):
+    await _create_players(admin_client, count=20, goleiros=2)
 
     r = await admin_client.post("/api/sorteio")
     assert r.status_code == 200
     data = r.json()
     assert "times" in data
+
+    # 20/5 = 4 times
     assert len(data["times"]) == 4
+    for jogadores in data["times"].values():
+        assert len(jogadores) == 5
 
-    # Cada time tem no máximo 5 jogadores
-    for time_nome, jogadores in data["times"].items():
-        assert len(jogadores) <= 5
-        assert time_nome in ["Amarelo", "Azul", "Verde", "Vermelho"]
 
-    # Verificar que sorteio está salvo
-    r = await admin_client.get("/api/sorteio")
-    assert r.json()["done"] is True
+@pytest.mark.anyio
+async def test_sorteio_society(admin_client):
+    await _create_players(admin_client, count=18, goleiros=2)
+    # Ativar society
+    await admin_client.post("/api/admin/toggle-society")
+
+    r = await admin_client.post("/api/sorteio")
+    assert r.status_code == 200
+    data = r.json()
+    # 18/6 = 3 times
+    assert len(data["times"]) == 3
 
 
 @pytest.mark.anyio
 async def test_sorteio_poucas_pessoas(admin_client):
-    """Sorteio com menos de 4 presentes deve falhar."""
-    await admin_client.post("/api/players", json={"nome": "A", "posicao": "linha"})
-    await admin_client.post("/api/players", json={"nome": "B", "posicao": "linha"})
-
-    players = (await admin_client.get("/api/players")).json()
-    for p in players:
-        await admin_client.patch(f"/api/players/{p['id']}", json={"presenca": "presente"})
-
+    await client_post_login(admin_client, "A", "linha")
+    await client_post_login(admin_client, "B", "linha")
     r = await admin_client.post("/api/sorteio")
     assert r.status_code == 400
 
 
+async def client_post_login(client, nome, posicao):
+    await client.post("/api/login", json={"nome": nome, "posicao": posicao})
+    await client.patch("/api/presenca/presente")
+
+
 @pytest.mark.anyio
-async def test_sorteio_top_players_distribuidos(admin_client):
-    await _create_players(admin_client, count=20, goleiros=4)
+async def test_sorteio_top_players_separados(admin_client):
+    await _create_players(admin_client, count=20, goleiros=2)
 
     r = await admin_client.post("/api/sorteio")
     times = r.json()["times"]
 
-    # Cada time deve ter no máximo 1 top player
     for jogadores in times.values():
         tops = [j for j in jogadores if j.get("top_player")]
         assert len(tops) <= 1
@@ -79,15 +87,28 @@ async def test_sorteio_max_1_goleiro_por_time(admin_client):
     times = r.json()["times"]
 
     for jogadores in times.values():
-        goleiros = [j for j in jogadores if j.get("posicao") == "goleiro"]
-        assert len(goleiros) <= 1
+        gols = [j for j in jogadores if j.get("posicao") == "goleiro"]
+        assert len(gols) <= 1
+
+
+@pytest.mark.anyio
+async def test_sorteio_reservas(admin_client):
+    await _create_players(admin_client, count=22, goleiros=2)
+
+    r = await admin_client.post("/api/sorteio")
+    data = r.json()
+    # 22/5 = 4 times (20), sobra 2 < 5 = reservas
+    assert len(data["times"]) == 4
+    # Reservas via GET
+    r = await admin_client.get("/api/sorteio")
+    assert len(r.json()["reservas"]) == 2
 
 
 @pytest.mark.anyio
 async def test_reset_sorteio(admin_client):
-    await _create_players(admin_client, count=8, goleiros=2)
-
+    await _create_players(admin_client, count=10, goleiros=2)
     await admin_client.post("/api/sorteio")
+
     r = await admin_client.get("/api/sorteio")
     assert r.json()["done"] is True
 
@@ -97,11 +118,24 @@ async def test_reset_sorteio(admin_client):
 
 
 @pytest.mark.anyio
-async def test_reset_presencas(admin_client):
-    await _create_players(admin_client, count=8, goleiros=2)
+async def test_reset_all(admin_client):
+    await _create_players(admin_client, count=10, goleiros=2)
+    await admin_client.post("/api/admin/reset-all")
 
-    await admin_client.post("/api/admin/reset-presencas")
     players = (await admin_client.get("/api/players")).json()
-    for p in players:
-        assert p["presenca"] == "pendente"
-        assert p["time"] is None
+    assert len(players) == 0
+
+
+@pytest.mark.anyio
+async def test_delete_resets_sorteio(admin_client):
+    await _create_players(admin_client, count=10, goleiros=2)
+    await admin_client.post("/api/sorteio")
+
+    r = await admin_client.get("/api/sorteio")
+    assert r.json()["done"] is True
+
+    players = (await admin_client.get("/api/players")).json()
+    await admin_client.delete(f"/api/players/{players[0]['id']}")
+
+    r = await admin_client.get("/api/sorteio")
+    assert r.json()["done"] is False
