@@ -4,26 +4,41 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
-import { loginPlayer, getMe } from "@/lib/api"
-import { Circle, Shield } from "lucide-react"
+import { loginPlayer, getMe, getSorteio } from "@/lib/api"
+import type { Posicao } from "@/lib/types"
+import { Circle, Shield, Goal, Check, X } from "lucide-react"
 
 export default function LoginPage() {
   const [nome, setNome] = useState("")
+  const [posicao, setPosicao] = useState<Posicao>("linha")
+  const [presenca, setPresenca] = useState<"presente" | "ausente">("presente")
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
-    getMe()
-      .then(() => navigate("/jogador"))
-      .catch(() => setLoading(false))
+    (async () => {
+      try {
+        await getMe()
+        const s = await getSorteio()
+        navigate(s.done ? "/times" : "/jogador")
+      } catch {
+        setLoading(false)
+      }
+    })()
   }, [navigate])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     if (!nome.trim()) return
     try {
-      await loginPlayer(nome.trim())
-      navigate("/jogador")
+      await loginPlayer(nome.trim(), posicao)
+      // Marcar presença logo após entrar
+      await fetch(`/api/presenca/${presenca}`, {
+        method: "PATCH",
+        credentials: "include",
+      })
+      const s = await getSorteio()
+      navigate(s.done ? "/times" : "/jogador")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao entrar")
     }
@@ -43,12 +58,12 @@ export default function LoginPage() {
         <div className="text-center space-y-2">
           <div className="flex justify-center">
             <div className="w-16 h-16 rounded-2xl bg-bg-card flex items-center justify-center border border-border">
-              <Circle className="w-8 h-8 text-time-verde" />
+              <Goal className="w-8 h-8 text-time-verde" />
             </div>
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Sorteador Futebol</h1>
           <p className="text-text-secondary text-sm">
-            Entre com seu nome para confirmar presença e ver seu time
+            Coloca teu nome, escolhe posicao e confirma presenca
           </p>
         </div>
 
@@ -59,12 +74,54 @@ export default function LoginPage() {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <Input
-                placeholder="Seu nome"
+                placeholder="Seu nome (unico)"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 className="bg-bg-elevated border-border text-text placeholder:text-text-muted h-11"
                 autoFocus
               />
+
+              {/* Presença + Posição em uma linha */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPresenca("presente")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg border text-xs font-medium transition-all ${
+                    presenca === "presente"
+                      ? "bg-presente/15 border-presente text-presente"
+                      : "bg-bg-elevated border-border text-text-muted hover:border-faint"
+                  }`}
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  Presente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPresenca("ausente")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg border text-xs font-medium transition-all ${
+                    presenca === "ausente"
+                      ? "bg-ausente/15 border-ausente text-ausente"
+                      : "bg-bg-elevated border-border text-text-muted hover:border-faint"
+                  }`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Ausente
+                </button>
+                <div className="w-px bg-border" />
+                <button
+                  type="button"
+                  onClick={() => setPosicao(posicao === "linha" ? "goleiro" : "linha")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg border text-xs font-medium transition-all ${
+                    posicao === "goleiro"
+                      ? "bg-time-amarelo/15 border-time-amarelo text-time-amarelo"
+                      : "bg-bg-elevated border-border text-text-muted hover:border-faint"
+                  }`}
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  Goleiro
+                </button>
+              </div>
+
               <Button
                 type="submit"
                 className="w-full h-11 bg-primary hover:bg-primary/90 font-semibold"

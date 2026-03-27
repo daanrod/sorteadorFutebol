@@ -15,11 +15,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json()
 }
 
-// Auth jogador
-export const loginPlayer = (nome: string) =>
+// Auth jogador (autocadastro: nome + posição)
+export const loginPlayer = (nome: string, posicao: Posicao) =>
   request<{ player: Player }>("/login", {
     method: "POST",
-    body: JSON.stringify({ nome }),
+    body: JSON.stringify({ nome, posicao }),
   })
 
 export const getMe = () => request<{ player: Player }>("/me")
@@ -51,9 +51,12 @@ export const updatePlayer = (id: string, data: Partial<Player>) =>
 export const deletePlayer = (id: string) =>
   request<{ ok: boolean }>(`/players/${id}`, { method: "DELETE" })
 
-// Presença
+// Presença + Posição (jogador atualiza a própria)
 export const updatePresenca = (presenca: Presenca) =>
   request<Player>(`/presenca/${presenca}`, { method: "PATCH" })
+
+export const updatePosicao = (posicao: Posicao) =>
+  request<Player>(`/posicao/${posicao}`, { method: "PATCH" })
 
 // Sorteio
 export const realizarSorteio = () =>
@@ -64,11 +67,20 @@ export const realizarSorteio = () =>
 export const getSorteio = () => request<SorteioResult>("/sorteio")
 
 // Admin actions
+export const adminRegister = (nome: string, posicao: Posicao) =>
+  request<Player>("/admin/register", {
+    method: "POST",
+    body: JSON.stringify({ nome, posicao }),
+  })
+
 export const resetSorteio = () =>
   request<{ ok: boolean }>("/admin/reset-sorteio", { method: "POST" })
 
 export const resetPresencas = () =>
   request<{ ok: boolean }>("/admin/reset-presencas", { method: "POST" })
+
+export const resetAll = () =>
+  request<{ ok: boolean }>("/admin/reset-all", { method: "POST" })
 
 // Config
 export const getConfig = () => request<AppConfig>("/config")

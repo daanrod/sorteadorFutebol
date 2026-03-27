@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { getMe, updatePresenca, getSorteio, logout } from "@/lib/api"
+import { getMe, updatePresenca, updatePosicao, getSorteio, logout } from "@/lib/api"
 import type { Player, SorteioResult } from "@/lib/types"
-import { Check, X, LogOut, Circle, Users } from "lucide-react"
+import { Check, X, LogOut, Circle, Users, Shield } from "lucide-react"
 import RouletteAnimation from "@/components/RouletteAnimation"
 
 export default function PlayerPage() {
@@ -37,7 +37,17 @@ export default function PlayerPage() {
     try {
       const updated = await updatePresenca(status)
       setPlayer(updated)
-      toast.success(status === "presente" ? "Presença confirmada!" : "Ausência registrada")
+      toast.success(status === "presente" ? "Presenca confirmada!" : "Ausencia registrada")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro")
+    }
+  }
+
+  async function handlePosicao(pos: "linha" | "goleiro") {
+    try {
+      const updated = await updatePosicao(pos)
+      setPlayer(updated)
+      toast.success(pos === "goleiro" ? "Posicao: Goleiro" : "Posicao: Linha")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro")
     }
@@ -82,11 +92,44 @@ export default function PlayerPage() {
         </button>
       </div>
 
+      {/* Posição */}
+      <Card className="bg-bg-card border-border">
+        <CardContent className="pt-6 space-y-4">
+          <span className="text-sm font-medium">Posicao</span>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              onClick={() => handlePosicao("linha")}
+              variant={player.posicao === "linha" ? "default" : "outline"}
+              className={
+                player.posicao === "linha"
+                  ? "bg-primary hover:bg-primary/90 text-white h-11"
+                  : "border-border text-text-secondary hover:bg-bg-elevated h-11"
+              }
+            >
+              <Circle className="w-4 h-4 mr-2" />
+              Linha
+            </Button>
+            <Button
+              onClick={() => handlePosicao("goleiro")}
+              variant={player.posicao === "goleiro" ? "default" : "outline"}
+              className={
+                player.posicao === "goleiro"
+                  ? "bg-time-amarelo hover:bg-time-amarelo/90 text-gray-900 h-11"
+                  : "border-border text-text-secondary hover:bg-bg-elevated h-11"
+              }
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Goleiro
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Presença */}
       <Card className="bg-bg-card border-border">
         <CardContent className="pt-6 space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Presença</span>
+            <span className="text-sm font-medium">Presenca</span>
             {player.presenca === "presente" && (
               <Badge className="bg-presente/15 text-presente border-0 gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-presente" />
@@ -138,7 +181,6 @@ export default function PlayerPage() {
         <Card className="bg-bg-card border-border">
           <CardContent className="pt-6 space-y-4">
             <div className="text-center space-y-3">
-              <Circle className="w-10 h-10 mx-auto text-text-muted" />
               <div>
                 <h2 className="font-semibold">Sorteio Realizado!</h2>
                 <p className="text-text-secondary text-sm">{sorteio.date}</p>
@@ -155,7 +197,7 @@ export default function PlayerPage() {
 
               {!playerTime && (
                 <p className="text-text-muted text-sm">
-                  Você não participou deste sorteio
+                  Voce nao participou deste sorteio
                 </p>
               )}
             </div>

@@ -24,6 +24,7 @@ class Player(BaseModel):
     posicao: Posicao = Posicao.LINHA
     presenca: Presenca = Presenca.PENDENTE
     top_player: bool = False
+    is_admin: bool = False
     time: str | None = None
 
 

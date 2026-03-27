@@ -89,6 +89,11 @@ export default function TimesPage() {
                 >
                   <span className="text-sm font-medium">{p.nome}</span>
                   <div className="flex items-center gap-2">
+                    {p.is_admin && (
+                      <Badge className="bg-primary/15 text-primary border-0 text-[10px] px-1.5">
+                        ADM
+                      </Badge>
+                    )}
                     {p.posicao === "goleiro" && (
                       <Badge className="bg-faint/50 text-text-muted border-0 text-[10px] px-1.5">
                         <Shield className="w-3 h-3 mr-1" />

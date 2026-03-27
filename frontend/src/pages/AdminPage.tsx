@@ -4,25 +4,23 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import {
-  getPlayers, createPlayer, updatePlayer, deletePlayer,
-  realizarSorteio, resetSorteio, resetPresencas, getSorteio,
+  getPlayers, updatePlayer, deletePlayer, adminRegister,
+  realizarSorteio, resetSorteio, resetPresencas, resetAll, getSorteio,
 } from "@/lib/api"
 import type { Player, Posicao, SorteioResult } from "@/lib/types"
 import {
-  Plus, Trash2, Circle, Shuffle, RotateCcw, Users,
-  Shield, Star, CircleDot,
+  Trash2, Circle, Shuffle, RotateCcw, Users,
+  Shield, Star, CircleDot, UserPlus, XCircle,
 } from "lucide-react"
 
 export default function AdminPage() {
   const [players, setPlayers] = useState<Player[]>([])
   const [sorteio, setSorteio] = useState<SorteioResult | null>(null)
-  const [novoNome, setNovoNome] = useState("")
-  const [novaPosicao, setNovaPosicao] = useState<Posicao>("linha")
+  const [adminNome, setAdminNome] = useState("")
+  const [adminPosicao, setAdminPosicao] = useState<Posicao>("linha")
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
@@ -40,15 +38,26 @@ export default function AdminPage() {
 
   useEffect(() => { load() }, [load])
 
-  async function handleAdd(e: React.FormEvent) {
+  async function handleAdminRegister(e: React.FormEvent) {
     e.preventDefault()
-    if (!novoNome.trim()) return
+    if (!adminNome.trim()) return
     try {
-      await createPlayer(novoNome.trim(), novaPosicao)
-      setNovoNome("")
-      setNovaPosicao("linha")
+      await adminRegister(adminNome.trim(), adminPosicao)
+      setAdminNome("")
+      setAdminPosicao("linha")
       load()
-      toast.success("Jogador cadastrado!")
+      toast.success("Admin cadastrado como jogador!")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro")
+    }
+  }
+
+  async function handleResetAll() {
+    if (!confirm("APAGAR TUDO? Todos os cadastros e sorteio serao removidos.")) return
+    try {
+      await resetAll()
+      load()
+      toast.success("Tudo limpo! Pronto pra comecar do zero.")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro")
     }
@@ -86,7 +95,7 @@ export default function AdminPage() {
   }
 
   async function handleResetSorteio() {
-    if (!confirm("Limpar o sorteio? Os times serão apagados.")) return
+    if (!confirm("Limpar o sorteio? Os times serao apagados.")) return
     try {
       await resetSorteio()
       load()
@@ -97,11 +106,11 @@ export default function AdminPage() {
   }
 
   async function handleResetPresencas() {
-    if (!confirm("Resetar presenças e sorteio? Use para uma nova semana.")) return
+    if (!confirm("Resetar presencas e sorteio? Use para uma nova semana.")) return
     try {
       await resetPresencas()
       load()
-      toast.success("Presenças resetadas — pronto pra nova semana!")
+      toast.success("Presencas resetadas — pronto pra nova semana!")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro")
     }
@@ -159,38 +168,36 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {/* Add Player */}
+      {/* Admin se cadastrar */}
       <Card className="bg-bg-card border-border">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Cadastrar Jogador</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <UserPlus className="w-4 h-4" />
+            Me cadastrar como jogador
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleAdd} className="space-y-3">
-            <div className="flex gap-3">
-              <Input
-                placeholder="Nome do jogador"
-                value={novoNome}
-                onChange={(e) => setNovoNome(e.target.value)}
-                className="bg-bg-elevated border-border text-text placeholder:text-text-muted h-10 flex-1"
-              />
-              <div className="flex items-center gap-2 bg-bg-elevated rounded-md px-3 border border-border">
-                <Label htmlFor="posicao-toggle" className="text-xs text-text-secondary whitespace-nowrap">
-                  {novaPosicao === "goleiro" ? "Goleiro" : "Linha"}
-                </Label>
-                <Switch
-                  id="posicao-toggle"
-                  checked={novaPosicao === "goleiro"}
-                  onCheckedChange={(v) => setNovaPosicao(v ? "goleiro" : "linha")}
-                />
-              </div>
-            </div>
-            <Button
-              type="submit"
-              className="w-full h-10 bg-primary hover:bg-primary/90 font-medium"
-              disabled={!novoNome.trim()}
+          <form onSubmit={handleAdminRegister} className="flex gap-2">
+            <Input
+              placeholder="Seu nome"
+              value={adminNome}
+              onChange={(e) => setAdminNome(e.target.value)}
+              className="bg-bg-elevated border-border text-text placeholder:text-text-muted h-10 flex-1"
+            />
+            <button
+              type="button"
+              onClick={() => setAdminPosicao(adminPosicao === "linha" ? "goleiro" : "linha")}
+              className={`px-3 h-10 rounded-lg border text-xs font-medium transition-all ${
+                adminPosicao === "goleiro"
+                  ? "bg-time-amarelo/15 border-time-amarelo text-time-amarelo"
+                  : "bg-bg-elevated border-border text-text-muted"
+              }`}
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Cadastrar
+              <Shield className="w-3.5 h-3.5 inline mr-1" />
+              {adminPosicao === "goleiro" ? "Goleiro" : "Linha"}
+            </button>
+            <Button type="submit" size="sm" className="h-10 bg-primary" disabled={!adminNome.trim()}>
+              <UserPlus className="w-4 h-4" />
             </Button>
           </form>
         </CardContent>
@@ -203,14 +210,14 @@ export default function AdminPage() {
             <CardTitle className="text-base">Jogadores ({players.length})</CardTitle>
             <div className="flex gap-2 text-xs text-text-muted">
               <span>{goleiros.length} goleiros</span>
-              <span>{tops.length} top players</span>
+              <span>{tops.length} tops</span>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-1">
           {players.length === 0 && (
             <p className="text-text-muted text-sm text-center py-8">
-              Nenhum jogador cadastrado
+              Nenhum jogador cadastrado ainda. Os jogadores se cadastram pelo link.
             </p>
           )}
           {players.map((p) => (
@@ -231,6 +238,11 @@ export default function AdminPage() {
                     <Badge className="bg-time-amarelo/15 text-time-amarelo border-0 text-[10px] px-1.5 py-0">
                       <Star className="w-3 h-3 mr-0.5" />
                       TOP
+                    </Badge>
+                  )}
+                  {p.is_admin && (
+                    <Badge className="bg-primary/15 text-primary border-0 text-[10px] px-1.5 py-0">
+                      ADM
                     </Badge>
                   )}
                 </div>
@@ -254,7 +266,7 @@ export default function AdminPage() {
                       ? "text-time-amarelo"
                       : "text-faint hover:text-text-muted"
                   }`}
-                  title={p.top_player ? "Remover top player" : "Marcar top player"}
+                  title={p.top_player ? "Remover top player" : "Marcar como cabeca de time"}
                 >
                   <Star className="w-4 h-4" />
                 </button>
@@ -276,7 +288,7 @@ export default function AdminPage() {
       {/* Actions */}
       <Card className="bg-bg-card border-border">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Ações</CardTitle>
+          <CardTitle className="text-base">Acoes</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <Button
@@ -304,10 +316,19 @@ export default function AdminPage() {
           <Button
             onClick={handleResetPresencas}
             variant="outline"
-            className="w-full h-11 border-ausente/30 text-ausente hover:bg-ausente/10"
+            className="w-full h-11 border-border text-text-secondary hover:bg-bg-elevated"
           >
             <RotateCcw className="w-4 h-4 mr-2" />
-            Resetar Presenças (nova semana)
+            Resetar Presencas (nova semana)
+          </Button>
+
+          <Button
+            onClick={handleResetAll}
+            variant="outline"
+            className="w-full h-11 border-ausente/30 text-ausente hover:bg-ausente/10"
+          >
+            <XCircle className="w-4 h-4 mr-2" />
+            Apagar Tudo (comecar do zero)
           </Button>
         </CardContent>
       </Card>

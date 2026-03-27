@@ -7,6 +7,7 @@ export interface Player {
   posicao: Posicao
   presenca: Presenca
   top_player: boolean
+  is_admin: boolean
   time: string | null
 }
 
