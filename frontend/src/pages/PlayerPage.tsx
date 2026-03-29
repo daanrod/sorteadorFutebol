@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -6,6 +6,7 @@ import { getMe, getPlayers, getSorteio, getConfig } from "@/lib/api"
 import type { Player, SorteioResult } from "@/lib/types"
 import { timesOrdenados, teamAccent, teamBadge } from "@/lib/utils-times"
 import { Circle, Shield, Check, X, Timer } from "lucide-react"
+import { useRealtimeUpdate } from "@/lib/useRealtimeUpdate"
 
 
 function formatDateBR(date: string | null) {
@@ -46,7 +47,6 @@ export default function PlayerPage() {
   const [sorteio, setSorteio] = useState<SorteioResult | null>(null)
   const [society, setSociety] = useState(false)
   const [loading, setLoading] = useState(true)
-  const pollRef = useRef<ReturnType<typeof setInterval>>(null)
   const navigate = useNavigate()
 
   const load = useCallback(async () => {
@@ -65,15 +65,8 @@ export default function PlayerPage() {
     }
   }, [navigate])
 
-  useEffect(() => {
-    load()
-    pollRef.current = setInterval(() => {
-      if (!document.hidden) load()
-    }, 2000)
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current)
-    }
-  }, [load])
+  useEffect(() => { load() }, [load])
+  useRealtimeUpdate(load)
 
   if (loading) {
     return (
@@ -258,7 +251,7 @@ export default function PlayerPage() {
       )}
 
       <p className="text-center text-text-muted text-[10px] pb-4">
-        Atualiza automaticamente a cada 2 segundos
+        Atualiza em tempo real
       </p>
     </div>
   )

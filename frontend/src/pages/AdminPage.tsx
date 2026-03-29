@@ -16,6 +16,7 @@ import {
   Trash2, Circle, Shuffle, RotateCcw, Users, Check, X,
   Shield, Star, UserPlus, Cookie,
 } from "lucide-react"
+import { useRealtimeUpdate } from "@/lib/useRealtimeUpdate"
 
 function formatDateBR(date: string | null) {
   if (!date) return ""
@@ -56,6 +57,7 @@ export default function AdminPage() {
   }, [navigate])
 
   useEffect(() => { load() }, [load])
+  useRealtimeUpdate(load)
 
   async function handleToggleSociety() {
     try {

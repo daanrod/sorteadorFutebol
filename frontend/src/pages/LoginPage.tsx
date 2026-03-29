@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { loginPlayer, getMe, getSorteio, getConfig } from "@/lib/api"
 import type { Posicao } from "@/lib/types"
 import { Circle, Shield, Goal, Check, X } from "lucide-react"
+import { useRealtimeUpdate } from "@/lib/useRealtimeUpdate"
 
 export default function LoginPage() {
   const [nome, setNome] = useState("")
@@ -19,9 +20,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
+  const reloadConfig = useCallback(() => {
+    getConfig().then(cfg => {
+      setFiltroEspecial(cfg.filtro_especial ?? false)
+      setSociety(cfg.society ?? false)
+    }).catch(() => {})
+  }, [])
+
+  useRealtimeUpdate(reloadConfig)
+
   useEffect(() => {
     (async () => {
-      // Sempre carregar config pra saber se filtro gordinho tá ativo
       getConfig().then(cfg => {
         setFiltroEspecial(cfg.filtro_especial ?? false)
         setSociety(cfg.society ?? false)

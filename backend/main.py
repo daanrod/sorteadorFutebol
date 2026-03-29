@@ -1,8 +1,9 @@
 import os
+import asyncio
 from datetime import date
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Response, Cookie
+from fastapi import FastAPI, HTTPException, Response, Cookie, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from models import (
@@ -33,6 +34,60 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ─── WebSocket — notifica clientes em tempo real ───
+
+_ws_clients: list[WebSocket] = []
+
+
+async def _notify_all():
+    """Notifica todos os clientes conectados que houve mudança."""
+    dead = []
+    for ws in _ws_clients:
+        try:
+            await ws.send_text("update")
+        except Exception:
+            dead.append(ws)
+    for ws in dead:
+        _ws_clients.remove(ws)
+
+
+def _notify():
+    """Versão sync — agenda notificação no event loop."""
+    try:
+        loop = asyncio.get_event_loop()
+        loop.create_task(_notify_all())
+    except RuntimeError:
+        pass
+
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+
+
+class NotifyMiddleware(BaseHTTPMiddleware):
+    """Notifica WebSocket clients após qualquer escrita bem sucedida."""
+    async def dispatch(self, request: StarletteRequest, call_next):
+        response = await call_next(request)
+        if request.method in ("POST", "PATCH", "DELETE") and response.status_code == 200:
+            await _notify_all()
+        return response
+
+
+app.add_middleware(NotifyMiddleware)
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    _ws_clients.append(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        if websocket in _ws_clients:
+            _ws_clients.remove(websocket)
 
 
 # ─── Health ───

@@ -1,6 +1,6 @@
 import type { Player, Posicao, Presenca, SorteioResult, AppConfig } from "./types"
 
-const BASE = import.meta.env.PROD ? "http://217.216.64.14:8000/api" : "/api"
+const BASE = "/api"
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
