@@ -50,9 +50,6 @@ def _distribuir_simples(jogadores: list[dict], times: dict[str, list[dict]], max
             and (not is_gol or not _time_tem_goleiro(times[t]))
             and (not is_esp or not _time_tem_especial(times[t]))
         ]
-        # Se gordinho e todos os times já têm gordinho, vai pra qualquer com vaga
-        if not disponiveis and is_esp and not is_gol:
-            disponiveis = [t for t in times if len(times[t]) < max_por_time]
         if not disponiveis:
             sobras.append(jogador)
             continue
