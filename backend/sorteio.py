@@ -38,11 +38,16 @@ def _time_tem_especial(jogadores: list[dict]) -> bool:
 
 
 def _distribuir_simples(jogadores: list[dict], times: dict[str, list[dict]], max_por_time: int) -> list[dict]:
-    """Distribui jogadores de LINHA nos times com vaga. Sem restrições extras."""
+    """Distribui jogadores nos times com vaga. Goleiros não vão pra time que já tem goleiro."""
     sobras = []
     random.shuffle(jogadores)
     for jogador in jogadores:
-        disponiveis = [t for t in times if len(times[t]) < max_por_time]
+        is_gol = jogador.get("posicao") == "goleiro"
+        disponiveis = [
+            t for t in times
+            if len(times[t]) < max_por_time
+            and (not is_gol or not _time_tem_goleiro(times[t]))
+        ]
         if not disponiveis:
             sobras.append(jogador)
             continue
@@ -103,7 +108,8 @@ def sortear(players: list[dict], filtro_especial: bool = False, society: bool = 
             if not _time_tem_goleiro(times[t]) and len(times[t]) < max_por_time
         ]
         if not sem_gol:
-            # Excedente — NÃO vai pra linha, fica de fora (reserva)
+            # Excedente — joga na linha como jogador normal
+            normais.append(goleiro)
             continue
         sem_gol.sort(key=lambda t: len(times[t]))
         goleiro["time"] = sem_gol[0]
