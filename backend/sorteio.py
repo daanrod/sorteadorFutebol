@@ -44,12 +44,28 @@ def _distribuir_simples(jogadores: list[dict], times: dict[str, list[dict]], max
     for jogador in jogadores:
         is_gol = jogador.get("posicao") == "goleiro"
         is_esp = jogador.get("is_especial", False)
-        disponiveis = [
-            t for t in times
-            if len(times[t]) < max_por_time
-            and (not is_gol or not _time_tem_goleiro(times[t]))
-            and (not is_esp or not _time_tem_especial(times[t]))
-        ]
+
+        if is_gol:
+            # Goleiro: nunca duplica no time
+            disponiveis = [
+                t for t in times
+                if len(times[t]) < max_por_time
+                and not _time_tem_goleiro(times[t])
+            ]
+        elif is_esp:
+            # Gordinho: prefere time com MENOS gordinhos
+            disponiveis = [t for t in times if len(times[t]) < max_por_time]
+            if disponiveis:
+                min_gord = min(
+                    sum(1 for p in times[t] if p.get("is_especial")) for t in disponiveis
+                )
+                disponiveis = [
+                    t for t in disponiveis
+                    if sum(1 for p in times[t] if p.get("is_especial")) == min_gord
+                ]
+        else:
+            disponiveis = [t for t in times if len(times[t]) < max_por_time]
+
         if not disponiveis:
             sobras.append(jogador)
             continue
@@ -88,8 +104,7 @@ def sortear(players: list[dict], filtro_especial: bool = False, society: bool = 
     # Separar por tipo
     tops = [p for p in presentes if p.get("top_player") and not p.get("is_avulso")]
     goleiros = [p for p in presentes if p.get("posicao") == "goleiro" and not p.get("top_player") and not p.get("is_avulso")]
-    especiais = [p for p in presentes if p.get("is_especial") and p.get("posicao") != "goleiro" and not p.get("top_player") and not p.get("is_avulso")] if filtro_especial else []
-    normais = [p for p in presentes if p.get("posicao") == "linha" and not p.get("top_player") and not p.get("is_avulso") and (not filtro_especial or not p.get("is_especial"))]
+    normais = [p for p in presentes if p.get("posicao") == "linha" and not p.get("top_player") and not p.get("is_avulso")]
     avulsos = [p for p in presentes if p.get("is_avulso")]
 
     # 1. Top players (1 por time)
@@ -117,20 +132,11 @@ def sortear(players: list[dict], filtro_especial: bool = False, society: bool = 
         goleiro["time"] = sem_gol[0]
         times[sem_gol[0]].append(goleiro)
 
-    # 3. Especiais (máx 1 por time)
-    if filtro_especial and especiais:
-        random.shuffle(especiais)
-        for esp in especiais:
-            sem_esp = [
-                t for t in nomes_times
-                if not _time_tem_especial(times[t]) and len(times[t]) < max_por_time
-            ]
-            if not sem_esp:
-                normais.append(esp)
-                continue
-            sem_esp.sort(key=lambda t: len(times[t]))
-            esp["time"] = sem_esp[0]
-            times[sem_esp[0]].append(esp)
+    # 3. Gordinhos primeiro (distribui balanceado entre os times)
+    if filtro_especial:
+        gordinhos = [p for p in normais if p.get("is_especial")]
+        normais = [p for p in normais if not p.get("is_especial")]
+        _distribuir_simples(gordinhos, times, max_por_time)
 
     # 4. Jogadores normais
     _distribuir_simples(normais, times, max_por_time)
