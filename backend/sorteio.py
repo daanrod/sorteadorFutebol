@@ -92,21 +92,25 @@ def sortear(players: list[dict], filtro_especial: bool = False, society: bool = 
         normais.append(p)
 
     # 2. Goleiros (máx 1 por time)
+    # Incluir goleiros que entraram como top player na contagem
     random.shuffle(goleiros)
     goleiros_excedentes = []
-    times_sem_goleiro = [t for t in nomes_times if not any(p.get("posicao") == "goleiro" for p in times[t])]
-    random.shuffle(times_sem_goleiro)
 
     for goleiro in goleiros:
+        # Recalcular a cada iteração pra garantir consistência
+        times_sem_goleiro = [
+            t for t in nomes_times
+            if not any(p.get("posicao") == "goleiro" for p in times[t])
+            and len(times[t]) < max_por_time
+        ]
         if not times_sem_goleiro:
             goleiros_excedentes.append(goleiro)
             continue
-        time_nome = times_sem_goleiro.pop(0)
-        if len(times[time_nome]) < max_por_time:
-            goleiro["time"] = time_nome
-            times[time_nome].append(goleiro)
-        else:
-            goleiros_excedentes.append(goleiro)
+        # Pegar time com menos jogadores entre os que não tem goleiro
+        times_sem_goleiro.sort(key=lambda t: len(times[t]))
+        time_nome = times_sem_goleiro[0]
+        goleiro["time"] = time_nome
+        times[time_nome].append(goleiro)
 
     normais.extend(goleiros_excedentes)
 
