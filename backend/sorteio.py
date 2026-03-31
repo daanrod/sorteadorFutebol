@@ -93,10 +93,8 @@ def sortear(players: list[dict], filtro_especial: bool = False, society: bool = 
         raise ValueError("Mínimo de 4 jogadores presentes para sortear")
 
     # Calcular número de times
-    num_times = max(2, len(presentes) // max_por_time)
-    sobra = len(presentes) - (num_times * max_por_time)
-    if sobra >= max_por_time:
-        num_times += 1
+    # Sempre cria time pro excedente (reserva participa do balanceamento)
+    num_times = max(2, math.ceil(len(presentes) / max_por_time))
     nomes_times = _gerar_nomes_times(num_times)
 
     times: dict[str, list[dict]] = {t: [] for t in nomes_times}
@@ -132,13 +130,26 @@ def sortear(players: list[dict], filtro_especial: bool = False, society: bool = 
         goleiro["time"] = sem_gol[0]
         times[sem_gol[0]].append(goleiro)
 
-    # 3. Gordinhos primeiro (distribui balanceado entre os times)
+    # 3. Jogadores normais + gordinhos (distribuição balanceada)
+    # Gordinhos são intercalados com normais pra não acumular num time só
     if filtro_especial:
         gordinhos = [p for p in normais if p.get("is_especial")]
-        normais = [p for p in normais if not p.get("is_especial")]
-        _distribuir_simples(gordinhos, times, max_por_time)
+        linha = [p for p in normais if not p.get("is_especial")]
+        random.shuffle(gordinhos)
+        random.shuffle(linha)
+        # Intercalar: 1 gordinho, N normais, 1 gordinho, N normais...
+        intercalado = []
+        gi, li = 0, 0
+        espaco = max(1, len(linha) // (len(gordinhos) + 1)) if gordinhos else 0
+        for i in range(len(linha) + len(gordinhos)):
+            if gi < len(gordinhos) and (li >= (gi + 1) * espaco or li >= len(linha)):
+                intercalado.append(gordinhos[gi])
+                gi += 1
+            elif li < len(linha):
+                intercalado.append(linha[li])
+                li += 1
+        normais = intercalado
 
-    # 4. Jogadores normais
     _distribuir_simples(normais, times, max_por_time)
 
     # 5. Avulsos por último
