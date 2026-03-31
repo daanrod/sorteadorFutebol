@@ -92,9 +92,8 @@ def sortear(players: list[dict], filtro_especial: bool = False, society: bool = 
     if len(presentes) < 4:
         raise ValueError("Mínimo de 4 jogadores presentes para sortear")
 
-    # Calcular número de times
-    # Sempre cria time pro excedente (reserva participa do balanceamento)
-    num_times = max(2, math.ceil(len(presentes) / max_por_time))
+    # Calcular número de times — só times completos
+    num_times = max(2, len(presentes) // max_por_time)
     nomes_times = _gerar_nomes_times(num_times)
 
     times: dict[str, list[dict]] = {t: [] for t in nomes_times}
