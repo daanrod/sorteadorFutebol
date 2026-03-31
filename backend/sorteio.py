@@ -37,39 +37,41 @@ def _time_tem_especial(jogadores: list[dict]) -> bool:
     return any(p.get("is_especial") for p in jogadores)
 
 
-def _distribuir_simples(jogadores: list[dict], times: dict[str, list[dict]], max_por_time: int) -> list[dict]:
-    """Distribui jogadores nos times com vaga. Goleiros não vão pra time que já tem goleiro."""
+def _distribuir_gordinhos(jogadores: list[dict], times: dict[str, list[dict]], max_por_time: int) -> list[dict]:
+    """Distribui gordinhos balanceados entre os times (time com menos gordinhos primeiro)."""
+    sobras = []
+    random.shuffle(jogadores)
+    for jogador in jogadores:
+        disponiveis = [t for t in times if len(times[t]) < max_por_time]
+        if not disponiveis:
+            sobras.append(jogador)
+            continue
+        # Time com menos gordinhos
+        min_gord = min(sum(1 for p in times[t] if p.get("is_especial")) for t in disponiveis)
+        melhores = [t for t in disponiveis if sum(1 for p in times[t] if p.get("is_especial")) == min_gord]
+        # Entre os com menos gordinhos, pegar o com menos jogadores
+        melhores.sort(key=lambda t: len(times[t]))
+        jogador["time"] = melhores[0]
+        times[melhores[0]].append(jogador)
+    return sobras
+
+
+def _distribuir_normais(jogadores: list[dict], times: dict[str, list[dict]], max_por_time: int) -> list[dict]:
+    """Distribui jogadores normais — preenche times maiores primeiro (enche os completos)."""
     sobras = []
     random.shuffle(jogadores)
     for jogador in jogadores:
         is_gol = jogador.get("posicao") == "goleiro"
-        is_esp = jogador.get("is_especial", False)
-
-        if is_gol:
-            # Goleiro: nunca duplica no time
-            disponiveis = [
-                t for t in times
-                if len(times[t]) < max_por_time
-                and not _time_tem_goleiro(times[t])
-            ]
-        elif is_esp:
-            # Gordinho: prefere time com MENOS gordinhos
-            disponiveis = [t for t in times if len(times[t]) < max_por_time]
-            if disponiveis:
-                min_gord = min(
-                    sum(1 for p in times[t] if p.get("is_especial")) for t in disponiveis
-                )
-                disponiveis = [
-                    t for t in disponiveis
-                    if sum(1 for p in times[t] if p.get("is_especial")) == min_gord
-                ]
-        else:
-            disponiveis = [t for t in times if len(times[t]) < max_por_time]
-
+        disponiveis = [
+            t for t in times
+            if len(times[t]) < max_por_time
+            and (not is_gol or not _time_tem_goleiro(times[t]))
+        ]
         if not disponiveis:
             sobras.append(jogador)
             continue
-        disponiveis.sort(key=lambda t: len(times[t]))
+        # Preencher times maiores primeiro (enche os completos antes do incompleto)
+        disponiveis.sort(key=lambda t: -len(times[t]))
         jogador["time"] = disponiveis[0]
         times[disponiveis[0]].append(jogador)
     return sobras
@@ -92,8 +94,10 @@ def sortear(players: list[dict], filtro_especial: bool = False, society: bool = 
     if len(presentes) < 4:
         raise ValueError("Mínimo de 4 jogadores presentes para sortear")
 
-    # Calcular número de times — só times completos
-    num_times = max(2, len(presentes) // max_por_time)
+    # Times completos + 1 incompleto se sobrar gente
+    num_completos = max(2, len(presentes) // max_por_time)
+    sobra = len(presentes) - (num_completos * max_por_time)
+    num_times = num_completos + (1 if sobra > 0 else 0)
     nomes_times = _gerar_nomes_times(num_times)
 
     times: dict[str, list[dict]] = {t: [] for t in nomes_times}
@@ -129,30 +133,17 @@ def sortear(players: list[dict], filtro_especial: bool = False, society: bool = 
         goleiro["time"] = sem_gol[0]
         times[sem_gol[0]].append(goleiro)
 
-    # 3. Jogadores normais + gordinhos (distribuição balanceada)
-    # Gordinhos são intercalados com normais pra não acumular num time só
+    # 3. Gordinhos (balanceado entre todos os times)
     if filtro_especial:
         gordinhos = [p for p in normais if p.get("is_especial")]
-        linha = [p for p in normais if not p.get("is_especial")]
-        random.shuffle(gordinhos)
-        random.shuffle(linha)
-        # Intercalar: 1 gordinho, N normais, 1 gordinho, N normais...
-        intercalado = []
-        gi, li = 0, 0
-        espaco = max(1, len(linha) // (len(gordinhos) + 1)) if gordinhos else 0
-        for i in range(len(linha) + len(gordinhos)):
-            if gi < len(gordinhos) and (li >= (gi + 1) * espaco or li >= len(linha)):
-                intercalado.append(gordinhos[gi])
-                gi += 1
-            elif li < len(linha):
-                intercalado.append(linha[li])
-                li += 1
-        normais = intercalado
+        normais = [p for p in normais if not p.get("is_especial")]
+        _distribuir_gordinhos(gordinhos, times, max_por_time)
 
-    _distribuir_simples(normais, times, max_por_time)
+    # 4. Jogadores normais (preenche times maiores primeiro)
+    _distribuir_normais(normais, times, max_por_time)
 
     # 5. Avulsos por último
-    _distribuir_simples(avulsos, times, max_por_time)
+    _distribuir_normais(avulsos, times, max_por_time)
 
     # Ordenar cada time: goleiro primeiro
     for nome in nomes_times:
