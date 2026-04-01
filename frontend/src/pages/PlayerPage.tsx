@@ -147,32 +147,6 @@ export default function PlayerPage() {
               </Card>
             ))}
           </div>
-
-          {/* Reservas */}
-          {sorteio.reservas && sorteio.reservas.length > 0 && (
-            <Card className="bg-bg-card border-border border-l-4 border-l-faint">
-              <CardHeader className="pb-2 pt-4 px-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-semibold text-text-muted">Reservas</CardTitle>
-                  <Badge className="border-0 text-[10px] bg-faint/30 text-text-muted">
-                    {sorteio.reservas.length}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="px-0 pb-2">
-                <table className="w-full">
-                  <tbody>
-                    {sorteio.reservas.map((p: Player) => (
-                      <tr key={p.id} className={meRow(p) || "text-text-muted"}>
-                        <td className="py-2 px-4 text-sm">{p.nome}</td>
-                        <td className="py-2 px-4 text-right"><PlayerBadges p={p} /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
-          )}
         </>
       ) : (
         <>

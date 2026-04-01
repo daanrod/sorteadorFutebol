@@ -359,7 +359,12 @@ def get_sorteio():
     for nome in times:
         times[nome] = sorted(times[nome], key=sort_key)
 
-    return {"done": True, "times": times, "reservas": reservas, "date": config.get("sorteio_date"), "reset_count": config.get("reset_count", 0)}
+    # Reservas viram um time "Reserva" se tiver gente
+    if reservas:
+        reservas = sorted(reservas, key=sort_key)
+        times["Reserva"] = reservas
+
+    return {"done": True, "times": times, "reservas": [], "date": config.get("sorteio_date"), "reset_count": config.get("reset_count", 0)}
 
 
 # ─── Admin: Reset ───

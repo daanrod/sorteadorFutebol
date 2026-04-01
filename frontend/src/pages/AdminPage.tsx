@@ -291,25 +291,6 @@ export default function AdminPage() {
             ))}
           </div>
 
-          {/* Reservas */}
-          {sorteioData.reservas && sorteioData.reservas.length > 0 && (
-            <Card className="bg-bg-card border-border border-l-4 border-l-faint">
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm font-semibold text-text-muted">Reservas ({sorteioData.reservas.length})</CardTitle>
-              </CardHeader>
-              <CardContent className="px-0 pb-2">
-                <table className="w-full">
-                  <tbody>
-                    {sorteioData.reservas.map((p: Player) => (
-                      <tr key={p.id} className="text-text-muted">
-                        <td className="py-2 px-4 text-sm">{p.nome}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
-          )}
         </>
       ) : (
         <>

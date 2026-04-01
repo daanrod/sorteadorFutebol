@@ -57,7 +57,7 @@ def _distribuir_gordinhos(jogadores: list[dict], times: dict[str, list[dict]], m
 
 
 def _distribuir_normais(jogadores: list[dict], times: dict[str, list[dict]], max_por_time: int) -> list[dict]:
-    """Distribui jogadores normais — preenche times maiores primeiro (enche os completos)."""
+    """Distribui jogadores normais — balanceado (menor primeiro). Goleiro nunca duplica."""
     sobras = []
     random.shuffle(jogadores)
     for jogador in jogadores:
@@ -70,8 +70,8 @@ def _distribuir_normais(jogadores: list[dict], times: dict[str, list[dict]], max
         if not disponiveis:
             sobras.append(jogador)
             continue
-        # Preencher times maiores primeiro (enche os completos antes do incompleto)
-        disponiveis.sort(key=lambda t: -len(times[t]))
+        # Time com menos jogadores primeiro (balanceado)
+        disponiveis.sort(key=lambda t: len(times[t]))
         jogador["time"] = disponiveis[0]
         times[disponiveis[0]].append(jogador)
     return sobras
@@ -94,10 +94,8 @@ def sortear(players: list[dict], filtro_especial: bool = False, society: bool = 
     if len(presentes) < 4:
         raise ValueError("Mínimo de 4 jogadores presentes para sortear")
 
-    # Times completos + 1 incompleto se sobrar gente
-    num_completos = max(2, len(presentes) // max_por_time)
-    sobra = len(presentes) - (num_completos * max_por_time)
-    num_times = num_completos + (1 if sobra > 0 else 0)
+    # Só times completos
+    num_times = max(2, len(presentes) // max_por_time)
     nomes_times = _gerar_nomes_times(num_times)
 
     times: dict[str, list[dict]] = {t: [] for t in nomes_times}
