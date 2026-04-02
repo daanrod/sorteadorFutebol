@@ -25,11 +25,13 @@ if os.path.exists(_env_path):
 
 app = FastAPI(title="Sorteador Futebol")
 
-ADMIN_SENHA = os.environ.get("ADMIN_SENHA", "admin123")
+ADMIN_SENHA = os.environ.get("ADMIN_SENHA")
+if not ADMIN_SENHA:
+    raise RuntimeError("ADMIN_SENHA não configurada. Crie o arquivo .env com ADMIN_SENHA=sua_senha")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "https://sorteador-futebol.vercel.app", "https://*.vercel.app"],
+    allow_origins=["http://localhost:5173", "https://sorteador-futebol.duckdns.org"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
