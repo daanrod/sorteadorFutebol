@@ -87,6 +87,9 @@ export const toggleFiltroEspecial = () =>
 export const toggleSociety = () =>
   request<{ society: boolean }>("/admin/toggle-society", { method: "POST" })
 
+export const toggleGoleirosFixos = () =>
+  request<{ goleiros_fixos: boolean }>("/admin/toggle-goleiros-fixos", { method: "POST" })
+
 export const resetSorteio = () =>
   request<{ ok: boolean }>("/admin/reset-sorteio", { method: "POST" })
 

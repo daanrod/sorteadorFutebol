@@ -307,7 +307,8 @@ def realizar_sorteio(admin_session: str = Cookie(None)):
         config = get_config()
         filtro = config.get("filtro_especial", False)
         society = config.get("society", False)
-        times = sortear(players, filtro_especial=filtro, society=society)
+        goleiros_fixos = config.get("goleiros_fixos", False)
+        times = sortear(players, filtro_especial=filtro, society=society, goleiros_fixos=goleiros_fixos)
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -433,6 +434,16 @@ def toggle_filtro_especial(admin_session: str = Cookie(None)):
     config["filtro_especial"] = not config.get("filtro_especial", False)
     save_config(config)
     return {"filtro_especial": config["filtro_especial"]}
+
+
+@app.post("/api/admin/toggle-goleiros-fixos")
+def toggle_goleiros_fixos(admin_session: str = Cookie(None)):
+    """Ativa/desativa goleiros fixos (não entram nos times, ficam num grupo rotativo)."""
+    _check_admin(admin_session)
+    config = get_config()
+    config["goleiros_fixos"] = not config.get("goleiros_fixos", False)
+    save_config(config)
+    return {"goleiros_fixos": config["goleiros_fixos"]}
 
 
 @app.get("/api/config")

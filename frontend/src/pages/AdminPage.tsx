@@ -8,10 +8,10 @@ import { toast } from "sonner"
 import ConfirmDialog from "@/components/ConfirmDialog"
 import {
   getPlayers, updatePlayer, deletePlayer, adminRegister, adminMe, adminAddPlayer,
-  realizarSorteio, resetAll, resetSorteio, getSorteio, getConfig, toggleFiltroEspecial, toggleSociety,
+  realizarSorteio, resetAll, resetSorteio, getSorteio, getConfig, toggleFiltroEspecial, toggleSociety, toggleGoleirosFixos,
 } from "@/lib/api"
 import type { Player, Posicao } from "@/lib/types"
-import { timesOrdenados, teamAccent, teamBadge } from "@/lib/utils-times"
+import { timesOrdenados, teamAccent, teamBadge, teamLabel } from "@/lib/utils-times"
 import {
   Trash2, Circle, Shuffle, RotateCcw, Users, Check, X,
   Shield, Star, UserPlus, Cookie,
@@ -33,6 +33,7 @@ export default function AdminPage() {
   const [adminPlayer, setAdminPlayer] = useState<Player | null>(null)
   const [filtroEspecial, setFiltroEspecial] = useState(false)
   const [society, setSociety] = useState(false)
+  const [goleirosFixos, setGoleirosFixos] = useState(false)
   const [cadastroTipo, setCadastroTipo] = useState<"eu" | "avulso">("eu")
   const [cadastroNome, setCadastroNome] = useState("")
   const [cadastroPosicao, setCadastroPosicao] = useState<Posicao>("linha")
@@ -48,6 +49,7 @@ export default function AdminPage() {
       setSorteioFeito(s.done)
       setFiltroEspecial(cfg.filtro_especial ?? false)
       setSociety(cfg.society ?? false)
+      setGoleirosFixos(cfg.goleiros_fixos ?? false)
       if (s.done) setSorteioData(s)
     } catch {
       navigate("/admin")
@@ -64,6 +66,16 @@ export default function AdminPage() {
       const { society: s } = await toggleSociety()
       setSociety(s)
       toast.success(s ? "Modo Society (6 por time)" : "Modo Futsal (5 por time)")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro")
+    }
+  }
+
+  async function handleToggleGoleirosFixos() {
+    try {
+      const { goleiros_fixos } = await toggleGoleirosFixos()
+      setGoleirosFixos(goleiros_fixos)
+      toast.success(goleiros_fixos ? "Goleiros Fixos: ATIVADO" : "Goleiros Fixos: desativado")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro")
     }
@@ -245,25 +257,34 @@ export default function AdminPage() {
           </div>
 
           {/* Info */}
-          <div className="text-center py-2">
+          <div className="text-center py-2 space-y-2">
             <h2 className="text-xl font-bold">Times Sorteados!</h2>
             <p className="text-text-muted text-sm">{formatDateBR(sorteioData.date)}</p>
             {(sorteioData.reset_count ?? 0) > 0 && (
-              <p className="text-text-muted text-xs mt-1">Sorteio resetado {sorteioData.reset_count}x</p>
+              <div className="inline-flex items-center gap-2 bg-ausente/15 border-2 border-ausente/50 rounded-lg px-4 py-2 mt-2">
+                <span className="text-2xl">⚠️</span>
+                <div className="text-left">
+                  <p className="text-ausente font-bold text-base leading-tight">Sorteio resetado {sorteioData.reset_count}x</p>
+                  <p className="text-ausente/80 text-[11px] leading-tight">pelo administrador</p>
+                </div>
+              </div>
             )}
           </div>
 
           {/* Times */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {timesOrdenados(sorteioData.times).map(([nome, jogadores]) => (
-                <Card key={nome} className={`bg-bg-card border-border border-l-4 ${teamAccent(nome)}`}>
+                <Card key={nome} className={`bg-bg-card border-border border-l-4 ${teamAccent(nome)} ${nome === "Goleiros" ? "sm:col-span-2" : ""}`}>
                   <CardHeader className="pb-2 pt-4 px-4">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-semibold">{nome}</CardTitle>
+                      <CardTitle className="text-sm font-semibold">{teamLabel(nome)}</CardTitle>
                       <Badge className={`border-0 text-[10px] ${teamBadge(nome)}`}>
-                        {jogadores.length}/{society ? 6 : 5}
+                        {nome === "Goleiros" || nome === "Reserva" ? jogadores.length : `${jogadores.length}/${society ? (goleirosFixos ? 5 : 6) : (goleirosFixos ? 4 : 5)}`}
                       </Badge>
                     </div>
+                    {nome === "Goleiros" && (
+                      <p className="text-[10px] text-text-muted mt-1">Rotacionam entre todos os times</p>
+                    )}
                   </CardHeader>
                   <CardContent className="px-0 pb-2">
                     <table className="w-full">
@@ -321,7 +342,7 @@ export default function AdminPage() {
                 </Button>
               }
               title="Realizar o sorteio?"
-              description={`${presentes.length} jogadores presentes serão divididos em times de ${society ? "6" : "5"}.`}
+              description={`${presentes.length} jogadores presentes serão divididos em times de ${society ? (goleirosFixos ? "5" : "6") : (goleirosFixos ? "4" : "5")}${goleirosFixos ? " (goleiros fixos rotativos)" : ""}.`}
               confirmText="Sortear"
               onConfirm={handleSortear}
             />
@@ -372,7 +393,7 @@ export default function AdminPage() {
                   : "border-border text-text-muted hover:border-faint"
               }`}
             >
-              Futsal (5 por time)
+              Futsal ({goleirosFixos ? "4" : "5"} por time)
             </button>
             <button
               onClick={() => { if (!society) handleToggleSociety() }}
@@ -382,9 +403,32 @@ export default function AdminPage() {
                   : "border-border text-text-muted hover:border-faint"
               }`}
             >
-              Society (6 por time)
+              Society ({goleirosFixos ? "5" : "6"} por time)
             </button>
           </div>
+
+          {/* Goleiros Fixos */}
+          <ConfirmDialog
+            trigger={
+              <button
+                className={`w-full h-9 rounded-lg border text-xs font-medium transition-all ${
+                  goleirosFixos
+                    ? "border-presente text-presente bg-presente/10"
+                    : "border-ausente/50 text-text-muted hover:border-faint"
+                }`}
+              >
+                Goleiros Fixos: {goleirosFixos ? "ATIVADO" : "desativado"}
+              </button>
+            }
+            title={goleirosFixos ? "Desativar goleiros fixos?" : "Ativar goleiros fixos?"}
+            description={goleirosFixos
+              ? "Goleiros voltam a ser distribuídos nos times normalmente."
+              : "Goleiros NÃO entrarão nos times, ficarão num grupo separado e rotativo entre todos os times. Times terão 1 jogador a menos (4 no futsal, 5 no society)."
+            }
+            confirmText={goleirosFixos ? "Desativar" : "Ativar"}
+            variant={goleirosFixos ? "destructive" : "default"}
+            onConfirm={handleToggleGoleirosFixos}
+          />
 
           {/* Cadastrar jogador */}
           <Card className="bg-bg-card border-border">

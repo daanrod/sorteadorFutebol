@@ -26,6 +26,7 @@ export interface AppConfig {
   sorteio_done: boolean
   filtro_especial?: boolean
   society?: boolean
+  goleiros_fixos?: boolean
   reset_count?: number
 }
 

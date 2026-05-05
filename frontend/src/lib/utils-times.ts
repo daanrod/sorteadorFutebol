@@ -5,6 +5,8 @@ const ORDEM_BASE = ["Amarelo", "Azul", "Verde", "Vermelho"]
 function ordemIndex(nome: string): number {
   const baseIdx = ORDEM_BASE.indexOf(nome)
   if (baseIdx >= 0) return baseIdx
+  // Goleiros fixos: aparece PRIMEIRO (antes dos times)
+  if (nome === "Goleiros") return -1
   // Branco, Branco 2, Branco 3... sempre depois dos 4 principais
   if (nome.startsWith("Branco")) return 100 + (parseInt(nome.replace(/\D/g, "") || "1") || 1)
   if (nome === "Reserva") return 999
@@ -23,6 +25,7 @@ export function teamAccent(nome: string): string {
     Vermelho: "border-l-time-vermelho",
   }
   if (nome === "Reserva") return "border-l-faint"
+  if (nome === "Goleiros") return "border-l-presente"
   return map[nome] || "border-l-time-branco"
 }
 
@@ -34,5 +37,12 @@ export function teamBadge(nome: string): string {
     Vermelho: "bg-time-vermelho/15 text-time-vermelho",
   }
   if (nome === "Reserva") return "bg-faint/30 text-text-muted"
+  if (nome === "Goleiros") return "bg-presente/15 text-presente"
   return map[nome] || "bg-time-branco/15 text-time-branco"
+}
+
+export function teamLabel(nome: string): string {
+  if (nome === "Goleiros") return "Goleiros (rotativos)"
+  if (nome === "Reserva") return "Reserva"
+  return nome
 }

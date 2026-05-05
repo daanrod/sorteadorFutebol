@@ -77,34 +77,57 @@ def _distribuir_normais(jogadores: list[dict], times: dict[str, list[dict]], max
     return sobras
 
 
-def sortear(players: list[dict], filtro_especial: bool = False, society: bool = False) -> dict[str, list[dict]]:
+def sortear(
+    players: list[dict],
+    filtro_especial: bool = False,
+    society: bool = False,
+    goleiros_fixos: bool = False,
+) -> dict[str, list[dict]]:
     """
     Sorteia jogadores presentes em times.
 
-    Ordem de prioridade:
+    Quando goleiros_fixos=True:
+    - Goleiros NÃO entram nos times, ficam num grupo separado (rotativo)
+    - Times só têm jogadores de linha
+    - Times: 4/time (futsal) ou 5/time (society)
+
+    Ordem normal:
     1. Top players (1 por time)
-    2. Goleiros (máx 1 por time — excedentes viram RESERVA, não vão pra linha)
-    3. Especiais/Gordinhos (máx 1 por time se filtro ativo)
-    4. Jogadores normais (linha)
-    5. Avulsos (só se sobrar vaga)
+    2. Goleiros (máx 1 por time — excedentes viram RESERVA)
+    3. Gordinhos (balanceado)
+    4. Jogadores normais
+    5. Avulsos
     """
     presentes = [p for p in players if p.get("presenca") == "presente"]
-    max_por_time = JOGADORES_SOCIETY if society else JOGADORES_FUTSAL
+    base_por_time = JOGADORES_SOCIETY if society else JOGADORES_FUTSAL
+    # Com goleiros fixos, times têm 1 a menos (sem o goleiro)
+    max_por_time = (base_por_time - 1) if goleiros_fixos else base_por_time
 
     if len(presentes) < 4:
         raise ValueError("Mínimo de 4 jogadores presentes para sortear")
 
-    # Só times completos
-    num_times = max(2, len(presentes) // max_por_time)
-    nomes_times = _gerar_nomes_times(num_times)
+    # Pra calcular times, considera só quem vai ser distribuído (sem goleiros se fixos)
+    if goleiros_fixos:
+        nao_goleiros = [p for p in presentes if p.get("posicao") != "goleiro"]
+        num_times = max(2, len(nao_goleiros) // max_por_time)
+    else:
+        num_times = max(2, len(presentes) // max_por_time)
 
+    nomes_times = _gerar_nomes_times(num_times)
     times: dict[str, list[dict]] = {t: [] for t in nomes_times}
 
     # Separar por tipo
-    tops = [p for p in presentes if p.get("top_player") and not p.get("is_avulso")]
+    tops = [p for p in presentes if p.get("top_player") and not p.get("is_avulso") and (not goleiros_fixos or p.get("posicao") != "goleiro")]
     goleiros = [p for p in presentes if p.get("posicao") == "goleiro" and not p.get("top_player") and not p.get("is_avulso")]
     normais = [p for p in presentes if p.get("posicao") == "linha" and not p.get("top_player") and not p.get("is_avulso")]
-    avulsos = [p for p in presentes if p.get("is_avulso")]
+    avulsos = [p for p in presentes if p.get("is_avulso") and (not goleiros_fixos or p.get("posicao") != "goleiro")]
+
+    # Avulsos goleiros e tops goleiros (caso fixo)
+    if goleiros_fixos:
+        avulsos_goleiros = [p for p in presentes if p.get("is_avulso") and p.get("posicao") == "goleiro"]
+        tops_goleiros = [p for p in presentes if p.get("top_player") and not p.get("is_avulso") and p.get("posicao") == "goleiro"]
+        goleiros.extend(avulsos_goleiros)
+        goleiros.extend(tops_goleiros)
 
     # 1. Top players (1 por time)
     random.shuffle(tops)
@@ -116,20 +139,25 @@ def sortear(players: list[dict], filtro_especial: bool = False, society: bool = 
         p["top_player"] = False
         normais.append(p)
 
-    # 2. Goleiros (máx 1 por time)
-    random.shuffle(goleiros)
-    for goleiro in goleiros:
-        sem_gol = [
-            t for t in nomes_times
-            if not _time_tem_goleiro(times[t]) and len(times[t]) < max_por_time
-        ]
-        if not sem_gol:
-            # Excedente — joga na linha como jogador normal
-            normais.append(goleiro)
-            continue
-        sem_gol.sort(key=lambda t: len(times[t]))
-        goleiro["time"] = sem_gol[0]
-        times[sem_gol[0]].append(goleiro)
+    # 2. Goleiros — só se NÃO for fixo
+    if not goleiros_fixos:
+        random.shuffle(goleiros)
+        for goleiro in goleiros:
+            sem_gol = [
+                t for t in nomes_times
+                if not _time_tem_goleiro(times[t]) and len(times[t]) < max_por_time
+            ]
+            if not sem_gol:
+                normais.append(goleiro)
+                continue
+            sem_gol.sort(key=lambda t: len(times[t]))
+            goleiro["time"] = sem_gol[0]
+            times[sem_gol[0]].append(goleiro)
+    else:
+        # Goleiros fixos vão pro time especial "Goleiros"
+        random.shuffle(goleiros)
+        for goleiro in goleiros:
+            goleiro["time"] = "Goleiros"
 
     # 3. Gordinhos (balanceado entre todos os times)
     if filtro_especial:
@@ -137,7 +165,7 @@ def sortear(players: list[dict], filtro_especial: bool = False, society: bool = 
         normais = [p for p in normais if not p.get("is_especial")]
         _distribuir_gordinhos(gordinhos, times, max_por_time)
 
-    # 4. Jogadores normais (preenche times maiores primeiro)
+    # 4. Jogadores normais
     _distribuir_normais(normais, times, max_por_time)
 
     # 5. Avulsos por último
@@ -146,5 +174,9 @@ def sortear(players: list[dict], filtro_especial: bool = False, society: bool = 
     # Ordenar cada time: goleiro primeiro
     for nome in nomes_times:
         times[nome] = _ordenar_time(times[nome])
+
+    # Adicionar grupo de goleiros fixos como "time" especial
+    if goleiros_fixos and goleiros:
+        times["Goleiros"] = _ordenar_time(goleiros)
 
     return times

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getMe, getPlayers, getSorteio, getConfig } from "@/lib/api"
 import type { Player, SorteioResult } from "@/lib/types"
-import { timesOrdenados, teamAccent, teamBadge } from "@/lib/utils-times"
+import { timesOrdenados, teamAccent, teamBadge, teamLabel } from "@/lib/utils-times"
 import { Circle, Shield, Check, X, Timer } from "lucide-react"
 import { useRealtimeUpdate } from "@/lib/useRealtimeUpdate"
 
@@ -46,6 +46,7 @@ export default function PlayerPage() {
   const [players, setPlayers] = useState<Player[]>([])
   const [sorteio, setSorteio] = useState<SorteioResult | null>(null)
   const [society, setSociety] = useState(false)
+  const [goleirosFixos, setGoleirosFixos] = useState(false)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
@@ -57,7 +58,10 @@ export default function PlayerPage() {
       setMe(player)
       setPlayers(allPlayers)
       setSorteio(s)
-      getConfig().then(cfg => setSociety(cfg.society ?? false)).catch(() => {})
+      getConfig().then(cfg => {
+        setSociety(cfg.society ?? false)
+        setGoleirosFixos(cfg.goleiros_fixos ?? false)
+      }).catch(() => {})
     } catch {
       navigate("/")
     } finally {
@@ -107,11 +111,17 @@ export default function PlayerPage() {
       {/* Se sorteio aconteceu → mostrar times */}
       {hasSorteio ? (
         <>
-          <div className="text-center py-3">
+          <div className="text-center py-3 space-y-2">
             <h2 className="text-xl font-bold">Times Sorteados!</h2>
             <p className="text-text-muted text-sm">{formatDateBR(sorteio.date)}</p>
             {(sorteio.reset_count ?? 0) > 0 && (
-              <p className="text-ausente text-xs mt-0.5">Sorteio resetado {sorteio.reset_count}x</p>
+              <div className="inline-flex items-center gap-2 bg-ausente/15 border-2 border-ausente/50 rounded-lg px-4 py-2 mt-2">
+                <span className="text-2xl">⚠️</span>
+                <div className="text-left">
+                  <p className="text-ausente font-bold text-base leading-tight">Sorteio resetado {sorteio.reset_count}x</p>
+                  <p className="text-ausente/80 text-[11px] leading-tight">pelo administrador</p>
+                </div>
+              </div>
             )}
           </div>
 
@@ -119,15 +129,18 @@ export default function PlayerPage() {
             {timesOrdenados(sorteio.times).map(([nome, jogadores]) => (
               <Card
                 key={nome}
-                className={`bg-bg-card border-border border-l-4 ${teamAccent(nome)}`}
+                className={`bg-bg-card border-border border-l-4 ${teamAccent(nome)} ${nome === "Goleiros" ? "sm:col-span-2" : ""}`}
               >
                 <CardHeader className="pb-2 pt-4 px-4">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-semibold">{nome}</CardTitle>
+                    <CardTitle className="text-sm font-semibold">{teamLabel(nome)}</CardTitle>
                     <Badge className={`border-0 text-[10px] ${teamBadge(nome)}`}>
-                      {jogadores.length}/{society ? 6 : 5}
+                      {nome === "Goleiros" || nome === "Reserva" ? jogadores.length : `${jogadores.length}/${society ? (goleirosFixos ? 5 : 6) : (goleirosFixos ? 4 : 5)}`}
                     </Badge>
                   </div>
+                  {nome === "Goleiros" && (
+                    <p className="text-[10px] text-text-muted mt-1">Rotacionam entre todos os times</p>
+                  )}
                 </CardHeader>
                 <CardContent className="px-0 pb-2">
                   <table className="w-full">
@@ -154,7 +167,7 @@ export default function PlayerPage() {
           <div className="flex items-center justify-between bg-bg-card rounded-lg px-4 py-3 border border-border">
             <div className="flex items-center gap-2">
               <Timer className="w-4 h-4 text-text-muted animate-pulse" />
-              <span className="text-sm text-text-secondary">Aguardando sorteio · {society ? "Society" : "Futsal"}</span>
+              <span className="text-sm text-text-secondary">Aguardando · {society ? "Society" : "Futsal"}{goleirosFixos ? " · Goleiros fixos" : ""}</span>
             </div>
             <div className="flex gap-3 text-xs font-mono">
               <span className="text-presente">{presentes.length} presentes</span>
