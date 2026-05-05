@@ -414,13 +414,14 @@ export default function AdminPage() {
           <ConfirmDialog
             trigger={
               <button
-                className={`w-full h-9 rounded-lg border text-xs font-medium transition-all ${
+                className={`w-full h-11 rounded-lg border-2 text-sm font-bold transition-all flex items-center justify-center gap-2 ${
                   goleirosFixos
-                    ? "border-presente text-presente bg-presente/10"
-                    : "border-ausente/50 text-text-muted hover:border-faint"
+                    ? "border-presente text-presente bg-presente/15 shadow-md shadow-presente/20"
+                    : "border-ausente text-ausente bg-ausente/15 hover:bg-ausente/25"
                 }`}
               >
-                Goleiros Fixos: {goleirosFixos ? "ATIVADO" : "desativado"}
+                <Shield className="w-4 h-4" />
+                Goleiros Fixos: {goleirosFixos ? "ATIVADO" : "DESATIVADO"}
               </button>
             }
             title={goleirosFixos ? "Desativar goleiros fixos?" : "Ativar goleiros fixos?"}
