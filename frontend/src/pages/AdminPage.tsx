@@ -13,6 +13,7 @@ import {
 import type { Player, Posicao } from "@/lib/types"
 import { timesOrdenados, teamAccent, teamBadge, teamLabel } from "@/lib/utils-times"
 import ImportListDialog from "@/components/ImportListDialog"
+import ContadoresDia from "@/components/ContadoresDia"
 import {
   Trash2, Circle, Shuffle, RotateCcw, Users, Check, X,
   Shield, Star, UserPlus, Cookie,
@@ -30,7 +31,7 @@ function formatDateBR(date: string | null) {
 export default function AdminPage() {
   const [players, setPlayers] = useState<Player[]>([])
   const [sorteioFeito, setSorteioFeito] = useState(false)
-  const [sorteioData, setSorteioData] = useState<{times: Record<string, Player[]>, reservas?: Player[], date: string | null, reset_count?: number} | null>(null)
+  const [sorteioData, setSorteioData] = useState<{times: Record<string, Player[]>, reservas?: Player[], date: string | null, reset_count?: number, sorteio_count?: number} | null>(null)
   const [adminPlayer, setAdminPlayer] = useState<Player | null>(null)
   const [filtroEspecial, setFiltroEspecial] = useState(false)
   const [society, setSociety] = useState(false)
@@ -258,18 +259,14 @@ export default function AdminPage() {
           </div>
 
           {/* Info */}
-          <div className="text-center py-2 space-y-2">
+          <div className="text-center py-2 space-y-3">
             <h2 className="text-xl font-bold">Times Sorteados!</h2>
             <p className="text-text-muted text-sm">{formatDateBR(sorteioData.date)}</p>
-            {(sorteioData.reset_count ?? 0) > 0 && (
-              <div className="inline-flex items-center gap-2 bg-ausente/15 border-2 border-ausente/50 rounded-lg px-4 py-2 mt-2">
-                <span className="text-2xl">⚠️</span>
-                <div className="text-left">
-                  <p className="text-ausente font-bold text-base leading-tight">Sorteio resetado {sorteioData.reset_count}x</p>
-                  <p className="text-ausente/80 text-[11px] leading-tight">pelo administrador</p>
-                </div>
-              </div>
-            )}
+            <ContadoresDia
+              sorteioCount={sorteioData.sorteio_count ?? 0}
+              resetCount={sorteioData.reset_count ?? 0}
+            />
+            <p className="text-text-muted text-[10px]">Contadores zeram todo dia às 5h da manhã</p>
           </div>
 
           {/* Times */}

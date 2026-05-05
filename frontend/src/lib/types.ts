@@ -20,6 +20,7 @@ export interface SorteioResult {
   reservas?: Player[]
   date: string | null
   reset_count?: number
+  sorteio_count?: number
 }
 
 export interface AppConfig {

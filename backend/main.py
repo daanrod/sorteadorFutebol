@@ -1,7 +1,27 @@
 import os
 import asyncio
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
+
+
+def _ciclo_atual() -> str:
+    """Retorna a data do ciclo atual (muda às 5h da manhã - Brasil UTC-3).
+    Antes das 5h ainda é o ciclo do dia anterior."""
+    brasil = datetime.now(timezone.utc) - timedelta(hours=3)
+    if brasil.hour < 5:
+        brasil = brasil - timedelta(days=1)
+    return brasil.strftime("%Y-%m-%d")
+
+
+def _aplicar_reset_diario(config: dict) -> dict:
+    """Zera contadores se o ciclo do dia mudou (5h Brasil)."""
+    ciclo = _ciclo_atual()
+    if config.get("ciclo_diario") != ciclo:
+        config["sorteio_count"] = 0
+        config["reset_count"] = 0
+        config["ciclo_diario"] = ciclo
+        save_config(config)
+    return config
 
 from fastapi import FastAPI, HTTPException, Response, Cookie, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -359,8 +379,10 @@ def realizar_sorteio(admin_session: str = Cookie(None)):
     save_all("players", players)
 
     config = get_config()
+    config = _aplicar_reset_diario(config)
     config["sorteio_date"] = str(date.today())
     config["sorteio_done"] = True
+    config["sorteio_count"] = config.get("sorteio_count", 0) + 1
     save_config(config)
 
     return {"times": times, "date": config["sorteio_date"]}
@@ -369,6 +391,7 @@ def realizar_sorteio(admin_session: str = Cookie(None)):
 @app.get("/api/sorteio")
 def get_sorteio():
     config = get_config()
+    config = _aplicar_reset_diario(config)
     if not config.get("sorteio_done"):
         return {"done": False, "times": {}, "date": None}
 
@@ -413,8 +436,17 @@ def get_sorteio():
                 # Cópia do goleiro com flag rotativo
                 gol_rotativo = {**goleiro, "rotativo": True}
                 times[time_nome] = [gol_rotativo] + times[time_nome]
+        # Remover o pseudo-time "Goleiros" — eles aparecem em cada time como rotativo
+        del times["Goleiros"]
 
-    return {"done": True, "times": times, "reservas": [], "date": config.get("sorteio_date"), "reset_count": config.get("reset_count", 0)}
+    return {
+        "done": True,
+        "times": times,
+        "reservas": [],
+        "date": config.get("sorteio_date"),
+        "reset_count": config.get("reset_count", 0),
+        "sorteio_count": config.get("sorteio_count", 0),
+    }
 
 
 # ─── Admin: Reset ───
@@ -428,6 +460,7 @@ def reset_sorteio(admin_session: str = Cookie(None)):
     save_all("players", players)
 
     config = get_config()
+    config = _aplicar_reset_diario(config)
     config["sorteio_done"] = False
     config["sorteio_date"] = None
     config["reset_count"] = config.get("reset_count", 0) + 1
@@ -495,4 +528,5 @@ def toggle_goleiros_fixos(admin_session: str = Cookie(None)):
 
 @app.get("/api/config")
 def get_app_config():
-    return get_config()
+    config = get_config()
+    return _aplicar_reset_diario(config)

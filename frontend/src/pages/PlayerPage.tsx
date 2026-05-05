@@ -7,6 +7,7 @@ import type { Player, SorteioResult } from "@/lib/types"
 import { timesOrdenados, teamAccent, teamBadge, teamLabel } from "@/lib/utils-times"
 import { Circle, Shield, Check, X, Timer } from "lucide-react"
 import { useRealtimeUpdate } from "@/lib/useRealtimeUpdate"
+import ContadoresDia from "@/components/ContadoresDia"
 
 
 function formatDateBR(date: string | null) {
@@ -114,18 +115,14 @@ export default function PlayerPage() {
       {/* Se sorteio aconteceu → mostrar times */}
       {hasSorteio ? (
         <>
-          <div className="text-center py-3 space-y-2">
+          <div className="text-center py-3 space-y-3">
             <h2 className="text-xl font-bold">Times Sorteados!</h2>
             <p className="text-text-muted text-sm">{formatDateBR(sorteio.date)}</p>
-            {(sorteio.reset_count ?? 0) > 0 && (
-              <div className="inline-flex items-center gap-2 bg-ausente/15 border-2 border-ausente/50 rounded-lg px-4 py-2 mt-2">
-                <span className="text-2xl">⚠️</span>
-                <div className="text-left">
-                  <p className="text-ausente font-bold text-base leading-tight">Sorteio resetado {sorteio.reset_count}x</p>
-                  <p className="text-ausente/80 text-[11px] leading-tight">pelo administrador</p>
-                </div>
-              </div>
-            )}
+            <ContadoresDia
+              sorteioCount={sorteio.sorteio_count ?? 0}
+              resetCount={sorteio.reset_count ?? 0}
+            />
+            <p className="text-text-muted text-[10px]">Contadores zeram todo dia às 5h da manhã</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

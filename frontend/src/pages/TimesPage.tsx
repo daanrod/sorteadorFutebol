@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getSorteio } from "@/lib/api"
 import type { SorteioResult, Player } from "@/lib/types"
-import { timesOrdenados, teamAccent, teamBadge } from "@/lib/utils-times"
+import { timesOrdenados, teamAccent, teamBadge, teamLabel } from "@/lib/utils-times"
+import { useRealtimeUpdate } from "@/lib/useRealtimeUpdate"
+import ContadoresDia from "@/components/ContadoresDia"
 import { ArrowLeft, Circle, Shield } from "lucide-react"
 
 
@@ -22,12 +24,15 @@ export default function TimesPage() {
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
-  useEffect(() => {
+  function load() {
     getSorteio()
       .then(setSorteio)
       .catch(() => navigate("/"))
       .finally(() => setLoading(false))
-  }, [navigate])
+  }
+
+  useEffect(() => { load() }, [])
+  useRealtimeUpdate(load)
 
   if (loading) {
     return (
@@ -54,13 +59,24 @@ export default function TimesPage() {
   }
 
   return (
-    <div className="min-h-screen px-4 py-8 max-w-2xl mx-auto space-y-6">
+    <div className="min-h-screen px-4 py-8 max-w-2xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <button onClick={() => navigate(-1)} className="text-text-muted hover:text-text-secondary transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="text-xl font-bold">Times</h1>
         <span className="text-text-muted text-xs">{formatDateBR(sorteio.date)}</span>
+      </div>
+
+      {/* Contadores diários — bem visíveis pra todos */}
+      <div className="space-y-2">
+        <ContadoresDia
+          sorteioCount={sorteio.sorteio_count ?? 0}
+          resetCount={sorteio.reset_count ?? 0}
+        />
+        {((sorteio.sorteio_count ?? 0) > 0 || (sorteio.reset_count ?? 0) > 0) && (
+          <p className="text-center text-text-muted text-[10px]">Contadores zeram todo dia às 5h da manhã</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -71,31 +87,38 @@ export default function TimesPage() {
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">{nome}</CardTitle>
+                <CardTitle className="text-base font-semibold">{teamLabel(nome)}</CardTitle>
                 <Badge className={`border-0 text-xs ${teamBadge(nome)}`}>
-                  {jogadores.length} jogadores
+                  {jogadores.filter(j => !j.rotativo).length} jogadores
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
-              {jogadores.map((p: Player) => (
+              {jogadores.map((p: Player, i: number) => (
                 <div
-                  key={p.id}
-                  className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-bg-elevated/50 transition-colors"
+                  key={`${p.id}-${i}`}
+                  className={`flex items-center justify-between py-1.5 px-2 rounded-md transition-colors ${
+                    p.rotativo ? "bg-presente/5" : "hover:bg-bg-elevated/50"
+                  }`}
                 >
                   <span className="text-sm font-medium">{p.nome}</span>
                   <div className="flex items-center gap-2">
-                    {p.is_admin && (
+                    {p.rotativo && (
+                      <Badge className="bg-presente/20 text-presente border-0 text-[10px] px-1.5 font-bold">
+                        ROT
+                      </Badge>
+                    )}
+                    {p.is_admin && !p.rotativo && (
                       <Badge className="bg-primary/15 text-primary border-0 text-[10px] px-1.5">
                         ADM
                       </Badge>
                     )}
-                    {p.is_especial && (
+                    {p.is_especial && !p.rotativo && (
                       <Badge className="bg-time-vermelho/15 text-time-vermelho border-0 text-[10px] px-1.5">
                         GOR
                       </Badge>
                     )}
-                    {p.is_avulso && (
+                    {p.is_avulso && !p.rotativo && (
                       <Badge className="bg-text-muted/15 text-text-muted border-0 text-[10px] px-1.5">
                         AVL
                       </Badge>
@@ -106,7 +129,7 @@ export default function TimesPage() {
                         GOL
                       </Badge>
                     )}
-                    {p.top_player && (
+                    {p.top_player && !p.rotativo && (
                       <Badge className="bg-top/15 text-top border-0 text-[10px] px-1.5">
                         TOP
                       </Badge>
