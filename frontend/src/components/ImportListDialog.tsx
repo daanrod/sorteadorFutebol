@@ -93,9 +93,9 @@ export default function ImportListDialog({ filtroEspecial, onImported }: Props) 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button variant="outline" className="w-full h-9 text-xs border-border text-text-secondary">
-            <ClipboardPaste className="w-3.5 h-3.5 mr-1.5" />
-            Importar lista de nomes
+          <Button className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-semibold text-sm shadow-lg shadow-primary/20">
+            <ClipboardPaste className="w-4 h-4 mr-2" />
+            Importar lista do WhatsApp
           </Button>
         }
       />
