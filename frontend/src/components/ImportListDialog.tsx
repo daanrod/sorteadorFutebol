@@ -95,7 +95,7 @@ export default function ImportListDialog({ filtroEspecial, onImported }: Props) 
         render={
           <Button className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-semibold text-sm shadow-lg shadow-primary/20">
             <ClipboardPaste className="w-4 h-4 mr-2" />
-            Importar lista do WhatsApp
+            Importar lista de jogadores
           </Button>
         }
       />
@@ -111,7 +111,7 @@ export default function ImportListDialog({ filtroEspecial, onImported }: Props) 
           {items.length === 0 ? (
             <>
               <p className="text-xs text-text-muted">
-                Cole a lista do WhatsApp aqui. Aceita numeração ou não. Use 🧤 (ou "(gol)") pra marcar goleiros.
+                Cole a lista aqui (WhatsApp, Telegram, anotação, etc). Aceita numeração ou não. Use 🧤 (ou "(gol)") pra marcar goleiros.
               </p>
               <Textarea
                 placeholder="1. Pedro&#10;2. João 🧤&#10;3. Marcos&#10;..."
