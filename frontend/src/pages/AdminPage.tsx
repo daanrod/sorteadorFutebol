@@ -12,6 +12,7 @@ import {
 } from "@/lib/api"
 import type { Player, Posicao } from "@/lib/types"
 import { timesOrdenados, teamAccent, teamBadge, teamLabel } from "@/lib/utils-times"
+import ImportListDialog from "@/components/ImportListDialog"
 import {
   Trash2, Circle, Shuffle, RotateCcw, Users, Check, X,
   Shield, Star, UserPlus, Cookie,
@@ -491,6 +492,11 @@ export default function AdminPage() {
                   </Button>
                 </div>
               </form>
+
+              {/* Importar lista */}
+              <div className="mt-3 pt-3 border-t border-border">
+                <ImportListDialog filtroEspecial={filtroEspecial} onImported={load} />
+              </div>
             </CardContent>
           </Card>
 

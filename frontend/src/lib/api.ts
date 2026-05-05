@@ -90,6 +90,14 @@ export const toggleSociety = () =>
 export const toggleGoleirosFixos = () =>
   request<{ goleiros_fixos: boolean }>("/admin/toggle-goleiros-fixos", { method: "POST" })
 
+export type ImportItem = { nome: string; posicao: Posicao; is_especial: boolean }
+
+export const adminAddPlayersBatch = (items: ImportItem[]) =>
+  request<{ created: Player[]; skipped: string[] }>("/admin/add-players-batch", {
+    method: "POST",
+    body: JSON.stringify(items),
+  })
+
 export const resetSorteio = () =>
   request<{ ok: boolean }>("/admin/reset-sorteio", { method: "POST" })
 
