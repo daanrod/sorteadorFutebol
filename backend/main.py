@@ -233,6 +233,7 @@ def admin_add_player(payload: PlayerCreate, admin_session: str = Cookie(None)):
 @app.post("/api/admin/add-players-batch")
 def admin_add_players_batch(payload: list[PlayerCreate], admin_session: str = Cookie(None)):
     """Admin cadastra vários jogadores de uma vez (importação de lista).
+    São cadastrados como JOGADORES NORMAIS (não avulsos).
     Retorna {created: [...], skipped: [...]} — skipped contém duplicados."""
     _check_admin(admin_session)
     players = get_all("players")
@@ -254,7 +255,7 @@ def admin_add_players_batch(payload: list[PlayerCreate], admin_session: str = Co
             posicao=item.posicao,
             is_especial=item.is_especial,
             presenca=Presenca.PRESENTE,
-            is_avulso=True,
+            is_avulso=False,
         ).model_dump()
         players.append(player)
         created.append(player)
