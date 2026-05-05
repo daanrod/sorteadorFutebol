@@ -6,23 +6,21 @@ interface Props {
 }
 
 export default function ContadoresDia({ sorteioCount, resetCount }: Props) {
-  if (sorteioCount === 0 && resetCount === 0) return null
-
   return (
     <div className="flex justify-center">
-      <div className="inline-flex items-stretch rounded-lg overflow-hidden border-2 border-border bg-bg-card">
-        <div className="flex items-center gap-2 px-4 py-2 bg-presente/10 border-r border-border">
-          <Shuffle className="w-4 h-4 text-presente" />
+      <div className="inline-flex items-stretch rounded-lg overflow-hidden border-2 border-border bg-bg-card shadow-md">
+        <div className="flex items-center gap-2 px-5 py-2.5 bg-presente/10 border-r-2 border-border">
+          <Shuffle className="w-5 h-5 text-presente" />
           <div>
-            <p className="text-presente font-bold text-base leading-tight">{sorteioCount}</p>
-            <p className="text-presente/80 text-[10px] leading-tight uppercase tracking-wider">Sorteios</p>
+            <p className="text-presente font-bold text-xl leading-tight">{sorteioCount}</p>
+            <p className="text-presente/80 text-[10px] leading-tight uppercase tracking-wider font-semibold">Sorteios</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-ausente/10">
-          <RotateCcw className="w-4 h-4 text-ausente" />
+        <div className="flex items-center gap-2 px-5 py-2.5 bg-ausente/10">
+          <RotateCcw className="w-5 h-5 text-ausente" />
           <div>
-            <p className="text-ausente font-bold text-base leading-tight">{resetCount}</p>
-            <p className="text-ausente/80 text-[10px] leading-tight uppercase tracking-wider">Resets</p>
+            <p className="text-ausente font-bold text-xl leading-tight">{resetCount}</p>
+            <p className="text-ausente/80 text-[10px] leading-tight uppercase tracking-wider font-semibold">Resets</p>
           </div>
         </div>
       </div>

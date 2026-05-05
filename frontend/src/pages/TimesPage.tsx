@@ -74,9 +74,7 @@ export default function TimesPage() {
           sorteioCount={sorteio.sorteio_count ?? 0}
           resetCount={sorteio.reset_count ?? 0}
         />
-        {((sorteio.sorteio_count ?? 0) > 0 || (sorteio.reset_count ?? 0) > 0) && (
-          <p className="text-center text-text-muted text-[10px]">Contadores zeram todo dia às 5h da manhã</p>
-        )}
+        <p className="text-center text-text-muted text-[10px]">Contadores zeram todo dia às 5h da manhã</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
