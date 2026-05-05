@@ -279,7 +279,7 @@ export default function AdminPage() {
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm font-semibold">{teamLabel(nome)}</CardTitle>
                       <Badge className={`border-0 text-[10px] ${teamBadge(nome)}`}>
-                        {nome === "Goleiros" || nome === "Reserva" ? jogadores.length : `${jogadores.length}/${society ? (goleirosFixos ? 5 : 6) : (goleirosFixos ? 4 : 5)}`}
+                        {nome === "Goleiros" || nome === "Reserva" ? jogadores.length : `${jogadores.filter(j => !j.rotativo).length}/${society ? (goleirosFixos ? 5 : 6) : (goleirosFixos ? 4 : 5)}`}
                       </Badge>
                     </div>
                     {nome === "Goleiros" && (
@@ -290,17 +290,19 @@ export default function AdminPage() {
                     <table className="w-full">
                       <tbody>
                         {jogadores.map((p: Player, i: number) => (
-                          <tr key={p.id} className={`${i < jogadores.length - 1 ? "border-b border-border/50" : ""} ${
+                          <tr key={`${p.id}-${i}`} className={`${i < jogadores.length - 1 ? "border-b border-border/50" : ""} ${
+                            p.rotativo ? "bg-presente/5" :
                             adminPlayer && p.id === adminPlayer.id ? "bg-time-amarelo/10 text-time-amarelo font-semibold" : ""
                           }`}>
                             <td className="py-2 px-4 text-sm">{p.nome}</td>
                             <td className="py-2 px-4 text-right">
                               <div className="flex gap-1 justify-end">
+                                {p.rotativo && <Badge className="bg-presente/20 text-presente border-0 text-[9px] px-1.5 py-0.5 font-bold">ROT</Badge>}
                                 {p.posicao === "goleiro" && <Badge className="bg-faint/50 text-text-muted border-0 text-[9px] px-1.5 py-0.5"><Shield className="w-3 h-3 mr-0.5" />GOL</Badge>}
-                                {p.top_player && <Badge className="bg-top/15 text-top border-0 text-[9px] px-1.5 py-0.5">TOP</Badge>}
-                                {p.is_admin && <Badge className="bg-primary/15 text-primary border-0 text-[9px] px-1.5 py-0.5">ADM</Badge>}
-                                {p.is_especial && <Badge className="bg-time-vermelho/15 text-time-vermelho border-0 text-[9px] px-1.5 py-0.5">GOR</Badge>}
-                                {p.is_avulso && <Badge className="bg-text-muted/15 text-text-muted border-0 text-[9px] px-1.5 py-0.5">AVL</Badge>}
+                                {p.top_player && !p.rotativo && <Badge className="bg-top/15 text-top border-0 text-[9px] px-1.5 py-0.5">TOP</Badge>}
+                                {p.is_admin && !p.rotativo && <Badge className="bg-primary/15 text-primary border-0 text-[9px] px-1.5 py-0.5">ADM</Badge>}
+                                {p.is_especial && !p.rotativo && <Badge className="bg-time-vermelho/15 text-time-vermelho border-0 text-[9px] px-1.5 py-0.5">GOR</Badge>}
+                                {p.is_avulso && !p.rotativo && <Badge className="bg-text-muted/15 text-text-muted border-0 text-[9px] px-1.5 py-0.5">AVL</Badge>}
                               </div>
                             </td>
                           </tr>

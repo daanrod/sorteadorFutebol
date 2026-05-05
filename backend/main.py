@@ -367,6 +367,19 @@ def get_sorteio():
         reservas = sorted(reservas, key=sort_key)
         times["Reserva"] = reservas
 
+    # Goleiros fixos: distribuir os goleiros do "time" Goleiros entre os times normais
+    # via round-robin (cada goleiro responsável por X times)
+    if config.get("goleiros_fixos") and "Goleiros" in times:
+        goleiros_pool = [g for g in times["Goleiros"]]
+        # Times normais (excluindo Goleiros e Reserva)
+        times_normais = [t for t in times if t not in ("Goleiros", "Reserva")]
+        if goleiros_pool and times_normais:
+            for i, time_nome in enumerate(times_normais):
+                goleiro = goleiros_pool[i % len(goleiros_pool)]
+                # Cópia do goleiro com flag rotativo
+                gol_rotativo = {**goleiro, "rotativo": True}
+                times[time_nome] = [gol_rotativo] + times[time_nome]
+
     return {"done": True, "times": times, "reservas": [], "date": config.get("sorteio_date"), "reset_count": config.get("reset_count", 0)}
 
 

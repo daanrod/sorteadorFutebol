@@ -11,6 +11,7 @@ export interface Player {
   is_avulso: boolean
   is_especial: boolean
   time: string | null
+  rotativo?: boolean
 }
 
 export interface SorteioResult {
